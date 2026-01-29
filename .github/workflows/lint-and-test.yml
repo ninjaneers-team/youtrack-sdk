@@ -40,7 +40,7 @@ jobs:
       - name: Tests with coverage (pytest-cov)
         run: |
           uv run \
-            pytest src/test/ \
+            pytest tests/ \
               --cov=youtrack_sdk \
               --cov-branch \
               --cov-config="${{ github.workspace }}/.coveragerc" \
