@@ -6,7 +6,9 @@ from functools import wraps
 from http import HTTPMethod
 from pathlib import Path
 from typing import Any
+from typing import Final
 from unittest.mock import ANY
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import httpx
@@ -21,6 +23,7 @@ from tests.test_definitions import TEST_ISSUE
 from tests.test_definitions import TEST_ISSUE_2
 from tests.test_definitions import TEST_SPRINT
 from tests.test_definitions import CustomIssue
+from youtrack_sdk.base_client import BaseClient
 from youtrack_sdk.client import Client
 from youtrack_sdk.entities import Agile
 from youtrack_sdk.entities import AgileRef
@@ -37,6 +40,10 @@ from youtrack_sdk.entities import SprintRef
 from youtrack_sdk.entities import Tag
 from youtrack_sdk.entities import User
 from youtrack_sdk.entities import WorkItemType
+from youtrack_sdk.exceptions import YouTrackException
+from youtrack_sdk.exceptions import YouTrackNotFound
+from youtrack_sdk.exceptions import YouTrackUnauthorized
+from youtrack_sdk.types import TimeoutSpec
 
 
 def mock_response(
@@ -70,7 +77,7 @@ def client() -> Generator[Client]:
 
 @patch.object(youtrack_sdk.client.httpx.Client, "request", side_effect=httpx.ConnectTimeout("timeout"))
 def test_client_timeout(mock_request: Any) -> None:  # noqa: ANN401
-    client = Client(base_url="https://server", token="test", timeout=123)  # noqa: S106
+    client: Final = Client(base_url="https://server", token="test", timeout=123)  # noqa: S106
     with pytest.raises(httpx.ConnectTimeout):
         client.get_issue(issue_id="1")
     mock_request.assert_called_once_with(
@@ -674,7 +681,116 @@ def test_context_manager() -> None:
 
 def test_context_manager_cleanup() -> None:
     """Test that the context manager properly closes the client."""
-    client = Client(base_url="https://server", token="test")  # noqa: S106
+    client: Final = Client(base_url="https://server", token="test")  # noqa: S106
     with client:
         assert not client._client.is_closed  # type: ignore[reportPrivateUsage]
     assert client._client.is_closed  # type: ignore[reportPrivateUsage]
+
+
+def test_external_httpx_client() -> None:
+    """Test that Client can use an external httpx.Client instance."""
+    mock_client: Final = Mock(spec=httpx.Client)
+    mock_client.headers = {}
+    mock_client.timeout = None  # Initialize timeout attribute
+
+    client: Final = Client(base_url="https://server", token="test", client=mock_client)  # noqa: S106
+
+    # Verify the external client was used
+    assert client._client is mock_client  # type: ignore[reportPrivateUsage]
+    # Verify headers were set
+    assert "Authorization" in mock_client.headers
+    assert mock_client.headers["Authorization"] == "Bearer test"
+
+
+@respx.mock
+def test_not_found_error(client: Client) -> None:
+    """Test that a 404 NOT_FOUND response raises YouTrackNotFound."""
+    respx.get("https://server/api/issues/INVALID-123").mock(return_value=httpx.Response(404))
+
+    with pytest.raises(YouTrackNotFound):
+        client.get_issue(issue_id="INVALID-123")
+
+
+@respx.mock
+def test_unauthorized_error(client: Client) -> None:
+    """Test that a 401 UNAUTHORIZED response raises YouTrackUnauthorized."""
+    respx.get("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(401))
+
+    with pytest.raises(YouTrackUnauthorized):
+        client.get_issue(issue_id="DEMO-1")
+
+
+@respx.mock
+def test_get_bytes_empty_response_error(client: Client) -> None:
+    """Test that _get_bytes raises YouTrackException when response is empty."""
+    # Mock a GET request that returns 204 No Content (empty response)
+    respx.get("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(204))
+
+    with pytest.raises(YouTrackException, match="Unexpected empty response from GET"):
+        client.get_issue(issue_id="DEMO-1")
+
+
+@respx.mock
+def test_post_bytes_empty_response_error(client: Client) -> None:
+    """Test that _post_bytes raises YouTrackException when response is empty."""
+    # Mock a POST request that returns 204 No Content (empty response)
+    respx.post("https://server/api/issues").mock(return_value=httpx.Response(204))
+
+    with pytest.raises(YouTrackException, match="Unexpected empty response from POST"):
+        client.create_issue(issue=TEST_ISSUE)
+
+
+@respx.mock
+def test_unexpected_status_code_error(client: Client) -> None:
+    """Test that unexpected status codes raise YouTrackException."""
+    # Mock a request that returns an unexpected error status code (e.g., 500)
+    respx.get("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(500))
+
+    with pytest.raises(YouTrackException, match="Unexpected status code for GET"):
+        client.get_issue(issue_id="DEMO-1")
+
+
+@respx.mock
+def test_delete_issue(client: Client) -> None:
+    """Test deleting an issue."""
+    respx.delete("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(200))
+
+    # delete_issue returns None on success
+    result: Final = client.delete_issue(issue_id="DEMO-1")
+    assert result is None
+
+
+@respx.mock
+def test_add_comment_to_issue(client: Client) -> None:
+    """Test adding a comment to an issue."""
+    comment: Final = IssueComment(text="Test comment")
+    mock_response: Final = '{"id": "1-1", "type": "IssueComment", "text": "Test comment", "deleted": false}'
+    respx.post("https://server/api/issues/DEMO-1/comments").mock(
+        return_value=httpx.Response(200, content=mock_response)
+    )
+
+    result: Final = client.create_issue_comment(issue_id="DEMO-1", comment=comment)
+    assert result.text == "Test comment"
+    assert result.id == "1-1"
+
+
+@respx.mock
+def test_delete_issue_comment(client: Client) -> None:
+    """Test deleting an issue comment."""
+    respx.delete("https://server/api/issues/DEMO-1/comments/1-1").mock(return_value=httpx.Response(200))
+
+    result: Final = client.delete_issue_comment(issue_id="DEMO-1", comment_id="1-1")
+    assert result is None
+
+
+def test_client_with_timeout_spec() -> None:
+    """Test that TimeoutSpec is properly converted to httpx.Timeout."""
+    timeout_spec: Final = TimeoutSpec(connect_timeout=5.0, read_timeout=30.0)
+
+    # Test the _to_httpx_timeout conversion directly
+    result: Final = BaseClient._to_httpx_timeout(timeout_spec)  # type: ignore[reportPrivateUsage]
+
+    # Verify it returns an httpx.Timeout object
+    assert isinstance(result, httpx.Timeout)
+    assert result.connect == 5.0
+    assert result.read == 30.0
