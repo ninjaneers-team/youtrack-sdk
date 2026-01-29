@@ -664,3 +664,17 @@ def test_get_sprints(client: Client) -> None:
 @mock_response(url="https://server/api/agiles/120-8/sprints/121-8", response_name="sprint", method=HTTPMethod.GET)
 def test_get_sprint(client: Client) -> None:
     assert client.get_sprint(agile_id="120-8", sprint_id="121-8") == TEST_SPRINT
+
+
+def test_context_manager() -> None:
+    """Test that Client can be used as a context manager."""
+    with Client(base_url="https://server", token="test") as client:  # noqa: S106
+        assert isinstance(client, Client)
+
+
+def test_context_manager_cleanup() -> None:
+    """Test that the context manager properly closes the client."""
+    client = Client(base_url="https://server", token="test")  # noqa: S106
+    with client:
+        assert not client._client.is_closed  # type: ignore[reportPrivateUsage]
+    assert client._client.is_closed  # type: ignore[reportPrivateUsage]
