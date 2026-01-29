@@ -1,11 +1,18 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
 from enum import StrEnum
 from typing import Annotated
+from typing import Any
+from typing import NamedTuple
+from typing import final
 
-from pydantic import AwareDatetime, BeforeValidator
+from pydantic import AwareDatetime
+from pydantic import BeforeValidator
 from pydantic_core.core_schema import ValidationInfo
 
-YouTrackDate = Annotated[
+type YouTrackDate = Annotated[
     date,
     BeforeValidator(
         lambda d: (datetime.fromtimestamp(d / 1000, UTC) - timedelta(hours=12)) if isinstance(d, int) else d,
@@ -13,7 +20,7 @@ YouTrackDate = Annotated[
 ]
 
 
-def validate_youtrack_datetime(value, info: ValidationInfo):
+def validate_youtrack_datetime(value: Any, info: ValidationInfo) -> Any:  # noqa: ANN401
     if "project_custom_field" not in info.data:
         raise RuntimeError("validate_youtrack_datetime can only be used with models having project_custom_field")
     if (
@@ -32,10 +39,16 @@ def validate_youtrack_datetime(value, info: ValidationInfo):
     return value
 
 
-YouTrackDateTime = Annotated[AwareDatetime, BeforeValidator(validate_youtrack_datetime)]
+type YouTrackDateTime = Annotated[AwareDatetime, BeforeValidator(validate_youtrack_datetime)]
 
 
 class IssueLinkDirection(StrEnum):
     OUTWARD = "s"
     INWARD = "t"
     BOTH = ""
+
+
+@final
+class TimeoutSpec(NamedTuple):
+    connect_timeout: float
+    read_timeout: float

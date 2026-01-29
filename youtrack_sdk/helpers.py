@@ -1,16 +1,25 @@
 import json
+from collections.abc import Collection
 from copy import deepcopy
-from datetime import UTC, date, datetime, time
+from datetime import UTC
+from datetime import date
+from datetime import datetime
+from datetime import time
 from itertools import starmap
-from typing import Annotated, Any, Callable, Collection, Optional, Type, Union, get_args, get_origin
+from typing import Annotated
+from typing import Any
+from typing import Optional
+from typing import get_args
+from typing import get_origin
 
 from pydantic import BaseModel
 
-from youtrack_sdk.entities import Issue, IssueCustomFieldType
-from youtrack_sdk.exceptions import YouTrackNotFound
+from youtrack_sdk.entities import Issue
+from youtrack_sdk.entities import IssueCustomFieldType
+from youtrack_sdk.exceptions import NonSingleValueError
 
 
-def deep_update(dest: dict, *mappings: dict) -> dict:
+def deep_update(dest: dict[Any, Any], *mappings: dict[Any, Any]) -> dict[Any, Any]:
     """Recursively updates `dest` with `mappings`.
 
     Unlike the standard dict union operator, this supports substructures and checks matching value types.
@@ -25,21 +34,22 @@ def deep_update(dest: dict, *mappings: dict) -> dict:
                 )
 
             if (key in result) and isinstance(value, dict):
-                result[key] = deep_update(result[key], value)
+                result[key] = deep_update(result[key], value)  # type: ignore[arg-type]
             elif (key in result) and isinstance(value, list):
-                if len(result[key]) != len(value):
-                    raise TypeError(
+                if len(result[key]) != len(value):  # type: ignore[arg-type]
+                    err_msg = (
                         f"Destination list length '{len(result[key])}' differs from "
-                        f"source list length '{len(value)}' for key '{key}'",
+                        + f"source list length '{len(value)}' for key '{key}'"  # type: ignore[arg-type]
                     )
-                result[key] = list(starmap(deep_update, zip(result[key], value)))
+                    raise TypeError(err_msg)
+                result[key] = list(starmap(deep_update, zip(result[key], value, strict=True)))  # type: ignore[arg-type]
             else:
                 result[key] = value
 
     return result
 
 
-def model_to_field_names(model: Type[BaseModel] | Union[Type[BaseModel]]) -> Optional[str]:
+def model_to_field_names(model: Any) -> Optional[str]:  # noqa: ANN401
     """Parses model and returns field names as a comma separated string.
 
     If a field has an alias, it will be used as a field name. If a field accepts different type(s),
@@ -49,12 +59,12 @@ def model_to_field_names(model: Type[BaseModel] | Union[Type[BaseModel]]) -> Opt
         id,name,value(id,period(id,minutes,presentation),description)
     """
 
-    def model_to_fields(m: Type[BaseModel]) -> dict:
+    def model_to_fields(m: type[BaseModel]) -> dict[str, Any]:
         model_schema = m.model_json_schema(ref_template="{model}")
         definitions = model_schema.get("$defs", {})
 
-        def schema_to_fields(schema: dict) -> dict:
-            def type_to_fields(field_type: dict) -> dict:
+        def schema_to_fields(schema: dict[str, Any]) -> dict[str, Any]:
+            def type_to_fields(field_type: dict[str, Any]) -> dict[str, Any]:
                 if "$ref" in field_type:
                     return schema_to_fields(definitions[field_type["$ref"]])
                 elif field_type.get("type") == "array":
@@ -64,11 +74,14 @@ def model_to_field_names(model: Type[BaseModel] | Union[Type[BaseModel]]) -> Opt
                 else:
                     return {}
 
+            # Only process if schema has properties (i.e., it's a model schema, not a primitive type)
+            if "properties" not in schema:
+                return {}
             return {name: type_to_fields(value) for name, value in schema["properties"].items()}
 
         return schema_to_fields(model_schema)
 
-    def fields_to_csv(fields: dict) -> str:
+    def fields_to_csv(fields: dict[str, Any]) -> str:
         return ",".join(
             f"{field_name}({field_value})" if (field_value := fields_to_csv(value)) else field_name
             for field_name, value in fields.items()
@@ -86,7 +99,7 @@ def model_to_field_names(model: Type[BaseModel] | Union[Type[BaseModel]]) -> Opt
     return fields_to_csv(fields_dict) or None
 
 
-def obj_to_dict(obj: Optional[BaseModel]) -> Optional[dict]:
+def obj_to_dict(obj: Optional[BaseModel]) -> Optional[dict[str, Any]]:
     """
     Converts pydantic model instance to dictionary including nested fields.
     Unset fields or fields without default values will be omitted.
@@ -102,29 +115,25 @@ def obj_to_dict(obj: Optional[BaseModel]) -> Optional[dict]:
 
 
 class YouTrackTimestampEncoder(json.JSONEncoder):
-    def default(self, obj):
+    def default(self, o: Any) -> Any:  # noqa: ANN401
         def to_youtrack_timestamp(dt: datetime) -> int:
             return int(dt.timestamp() * 1000)
 
-        match obj:
+        match o:
             case datetime():
-                return to_youtrack_timestamp(obj)
+                return to_youtrack_timestamp(o)
             case date():
-                return to_youtrack_timestamp(datetime.combine(obj, time(hour=12, tzinfo=UTC)))
+                return to_youtrack_timestamp(datetime.combine(o, time(hour=12, tzinfo=UTC)))
             case _:
-                return json.JSONEncoder.default(self, obj)
+                return json.JSONEncoder.default(self, o)
 
 
-def custom_json_dumps(obj: Any) -> str:
+def custom_json_dumps(obj: Any) -> str:  # noqa: ANN401
     return json.dumps(obj, cls=YouTrackTimestampEncoder, allow_nan=False)
 
 
 def obj_to_json(obj: Optional[BaseModel]) -> str:
     return custom_json_dumps(obj_to_dict(obj))
-
-
-class NonSingleValueError(Exception):
-    pass
 
 
 def get_single_value[T](values: Collection[T]) -> T:
@@ -136,13 +145,8 @@ def get_single_value[T](values: Collection[T]) -> T:
 
 
 def get_issue_custom_field(issue: Issue, field_name: str) -> IssueCustomFieldType:
-    return get_single_value(tuple(filter(lambda field: field.name == field_name, issue.custom_fields)))
+    def _filter_func(field: IssueCustomFieldType) -> bool:
+        return field.name == field_name
 
-
-def exists(getter: Callable, *args, **kwargs) -> bool:
-    try:
-        getter(*args, **kwargs)
-    except YouTrackNotFound:
-        return False
-    else:
-        return True
+    custom_fields = issue.custom_fields if issue.custom_fields else []  # type: ignore[assignment]
+    return get_single_value(tuple(filter(_filter_func, custom_fields)))  # type: ignore[arg-type]

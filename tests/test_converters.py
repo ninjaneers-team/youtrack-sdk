@@ -1,12 +1,17 @@
 import json
-from datetime import UTC, date, datetime
-from typing import Literal, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC
+from datetime import date
+from datetime import datetime
+from typing import Literal
+from typing import Optional
 from unittest import TestCase
 
 from pydantic import Field
 
 from youtrack_sdk.entities import BaseModel
-from youtrack_sdk.helpers import custom_json_dumps, obj_to_dict
+from youtrack_sdk.helpers import custom_json_dumps
+from youtrack_sdk.helpers import obj_to_dict
 
 
 class SimpleModel(BaseModel):
@@ -31,20 +36,28 @@ class NestedSequenceModel(BaseModel):
 class TestObjToDict(TestCase):
     maxDiff = None
 
-    def test_none(self):
+    def test_none(self) -> None:
         self.assertIsNone(obj_to_dict(None))
 
-    def test_simple_model(self):
+    def test_simple_model(self) -> None:
+        result = obj_to_dict(SimpleModel.model_construct(short_name="Demo", value=None))
+        assert result is not None
         self.assertDictEqual(
             {
                 "$type": "SimpleModel",
                 "shortName": "Demo",
                 "value": None,
             },
-            obj_to_dict(SimpleModel.model_construct(short_name="Demo", value=None)),
+            result,
         )
 
-    def test_nested_model(self):
+    def test_nested_model(self) -> None:
+        result = obj_to_dict(
+            NestedModel.model_construct(
+                source=SimpleModel.model_construct(short_name="Demo", value=None),
+            ),
+        )
+        assert result is not None
         self.assertDictEqual(
             {
                 "$type": "NestedModel",
@@ -54,14 +67,22 @@ class TestObjToDict(TestCase):
                     "value": None,
                 },
             },
-            obj_to_dict(
-                NestedModel.model_construct(
-                    source=SimpleModel.model_construct(short_name="Demo", value=None),
-                ),
-            ),
+            result,
         )
 
-    def test_nested_sequence_model(self):
+    def test_nested_sequence_model(self) -> None:
+        result = obj_to_dict(
+            NestedSequenceModel.model_construct(
+                items=[
+                    NestedModel.model_construct(),
+                    NestedModel.model_construct(
+                        source=SimpleModel.model_construct(short_name="Source", value=None),
+                        dest=SimpleModel.model_construct(short_name="Dest", value=5),
+                    ),
+                ],
+            ),
+        )
+        assert result is not None
         self.assertDictEqual(
             {
                 "$type": "NestedSequenceModel",
@@ -76,24 +97,14 @@ class TestObjToDict(TestCase):
                     },
                 ],
             },
-            obj_to_dict(
-                NestedSequenceModel.model_construct(
-                    items=[
-                        NestedModel.model_construct(),
-                        NestedModel.model_construct(
-                            source=SimpleModel.model_construct(short_name="Source", value=None),
-                            dest=SimpleModel.model_construct(short_name="Dest", value=5),
-                        ),
-                    ],
-                ),
-            ),
+            result,
         )
 
 
 class TestDatesToTimestamp(TestCase):
     maxDiff = None
 
-    def test_flat_dict(self):
+    def test_flat_dict(self) -> None:
         self.assertDictEqual(
             {
                 "some_value": 10,
@@ -111,7 +122,7 @@ class TestDatesToTimestamp(TestCase):
             ),
         )
 
-    def test_nested_dict(self):
+    def test_nested_dict(self) -> None:
         self.assertDictEqual(
             {
                 "str_value": "some text",
@@ -141,7 +152,7 @@ class TestDatesToTimestamp(TestCase):
             ),
         )
 
-    def test_nested_sequence_dict(self):
+    def test_nested_sequence_dict(self) -> None:
         self.assertDictEqual(
             {
                 "str_value": "some text",
@@ -151,12 +162,10 @@ class TestDatesToTimestamp(TestCase):
                         "datetime_value": 1612879391000,
                     },
                     {
-                        "nested_tuple_value": (
-                            {
-                                "none_value": None,
-                                "date_value": 1645099200000,
-                            }
-                        ),
+                        "nested_tuple_value": ({
+                            "none_value": None,
+                            "date_value": 1645099200000,
+                        }),
                     },
                 ],
             },
@@ -170,12 +179,10 @@ class TestDatesToTimestamp(TestCase):
                                 "datetime_value": datetime(2021, 2, 9, 14, 3, 11, tzinfo=UTC),
                             },
                             {
-                                "nested_tuple_value": (
-                                    {
-                                        "none_value": None,
-                                        "date_value": date(2022, 2, 17),
-                                    }
-                                ),
+                                "nested_tuple_value": ({
+                                    "none_value": None,
+                                    "date_value": date(2022, 2, 17),
+                                }),
                             },
                         ],
                     },

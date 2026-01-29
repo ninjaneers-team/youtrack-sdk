@@ -3,3 +3,6 @@ __pycache__/
 
 /.idea/*
 !/.idea/watcherTasks.xml
+.vscode/
+coverage_html/
+**/.coverage

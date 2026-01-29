@@ -8,3 +8,7 @@ class YouTrackNotFound(YouTrackException):
 
 class YouTrackUnauthorized(YouTrackException):
     pass
+
+
+class NonSingleValueError(ValueError):
+    pass

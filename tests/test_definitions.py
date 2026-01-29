@@ -1,34 +1,36 @@
-from datetime import UTC, date, datetime
-from typing import Literal, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC
+from datetime import date
+from datetime import datetime
+from typing import Literal
+from typing import Optional
 
 from pydantic import Field
 
-from youtrack_sdk.entities import (
-    Agile,
-    AgileRef,
-    BaseModel,
-    CustomField,
-    DateIssueCustomField,
-    EnumBundleElement,
-    EnumProjectCustomField,
-    FieldType,
-    Issue,
-    IssueCustomFieldType,
-    Project,
-    SimpleIssueCustomField,
-    SimpleProjectCustomField,
-    SingleEnumIssueCustomField,
-    SingleUserIssueCustomField,
-    Sprint,
-    SprintRef,
-    StateBundleElement,
-    StateIssueCustomField,
-    StateProjectCustomField,
-    Tag,
-    User,
-    UserGroup,
-    UserProjectCustomField,
-)
+from youtrack_sdk.entities import Agile
+from youtrack_sdk.entities import AgileRef
+from youtrack_sdk.entities import BaseModel
+from youtrack_sdk.entities import CustomField
+from youtrack_sdk.entities import DateIssueCustomField
+from youtrack_sdk.entities import EnumBundleElement
+from youtrack_sdk.entities import EnumProjectCustomField
+from youtrack_sdk.entities import FieldType
+from youtrack_sdk.entities import Issue
+from youtrack_sdk.entities import IssueCustomFieldType
+from youtrack_sdk.entities import Project
+from youtrack_sdk.entities import SimpleIssueCustomField
+from youtrack_sdk.entities import SimpleProjectCustomField
+from youtrack_sdk.entities import SingleEnumIssueCustomField
+from youtrack_sdk.entities import SingleUserIssueCustomField
+from youtrack_sdk.entities import Sprint
+from youtrack_sdk.entities import SprintRef
+from youtrack_sdk.entities import StateBundleElement
+from youtrack_sdk.entities import StateIssueCustomField
+from youtrack_sdk.entities import StateProjectCustomField
+from youtrack_sdk.entities import Tag
+from youtrack_sdk.entities import User
+from youtrack_sdk.entities import UserGroup
+from youtrack_sdk.entities import UserProjectCustomField
 
 
 class CustomIssue(BaseModel):

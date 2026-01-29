@@ -1,0 +1,15 @@
+{
+  "typeCheckingMode": "strict",
+  "exclude": [
+    "**/__pycache__/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/.mypy_cache/**",
+    "**/.pytest_cache/**",
+    "**/.ruff_cache/**",
+    "**/.vscode/**",
+    "**/.idea/**",
+    "**/.git/**",
+    "**/.github/**"
+  ]
+}

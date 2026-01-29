@@ -1,14 +1,18 @@
-from http import HTTPStatus
-from typing import Annotated, Literal, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Annotated
+from typing import Literal
+from typing import Optional
 from unittest import TestCase
 
-import requests_mock
 from pydantic import Field
 
-from tests.test_definitions import TEST_ISSUE, TEST_STATE_CUSTOM_FIELD
+from tests.test_definitions import TEST_ISSUE
+from tests.test_definitions import TEST_STATE_CUSTOM_FIELD
 from youtrack_sdk import Client
 from youtrack_sdk.entities import BaseModel
-from youtrack_sdk.helpers import NonSingleValueError, exists, get_issue_custom_field, model_to_field_names
+from youtrack_sdk.exceptions import NonSingleValueError
+from youtrack_sdk.helpers import get_issue_custom_field
+from youtrack_sdk.helpers import model_to_field_names
 
 
 class SimpleModel(BaseModel):
@@ -29,34 +33,32 @@ class NestedUnionModel(BaseModel):
 
 
 class TestModelToFieldNames(TestCase):
-    def test_simple_model(self):
+    def test_simple_model(self) -> None:
         self.assertEqual(
             "$type,id,shortName",
             model_to_field_names(SimpleModel),
         )
 
-    def test_nested_model(self):
+    def test_nested_model(self) -> None:
         self.assertEqual(
             "$type,value($type,id,shortName)",
             model_to_field_names(NestedModel),
         )
 
-    def test_nested_union_model(self):
+    def test_nested_union_model(self) -> None:
         self.assertEqual(
-            "$type,"
-            "items($type,value($type,id,shortName),id,shortName),"
-            "entry($type,value($type,id,shortName),id,shortName)",
+            "$type,items($type,value($type,id,shortName),id,shortName),entry($type,value($type,id,shortName),id,shortName)",
             model_to_field_names(NestedUnionModel),
         )
 
-    def test_union_type(self):
+    def test_union_type(self) -> None:
         self.assertEqual(
             "$type,id,shortName,value($type,id,shortName)",
             model_to_field_names(SimpleModel | NestedModel),
         )
         self.assertEqual(
             "$type,id,shortName,value($type,id,shortName)",
-            model_to_field_names(Union[SimpleModel | NestedModel]),
+            model_to_field_names(SimpleModel | NestedModel),
         )
         self.assertEqual(
             "$type,id,shortName,value($type,id,shortName)",
@@ -65,10 +67,10 @@ class TestModelToFieldNames(TestCase):
 
 
 class TestHelpers(TestCase):
-    def setUp(self):
-        self.client = Client(base_url="https://server", token="test")
+    def setUp(self) -> None:
+        self.client = Client(base_url="https://server", token="test")  # noqa: S106
 
-    def test_get_issue_custom_field(self):
+    def test_get_issue_custom_field(self) -> None:
         self.assertEqual(
             get_issue_custom_field(issue=TEST_ISSUE, field_name="State"),
             TEST_STATE_CUSTOM_FIELD,
@@ -79,13 +81,3 @@ class TestHelpers(TestCase):
             issue=TEST_ISSUE,
             field_name="Unknown",
         )
-
-    @requests_mock.Mocker()
-    def test_issue_exists(self, m):
-        m.register_uri(method="GET", url="https://server/api/issues/1", json={})
-        self.assertTrue(exists(self.client.get_issue, issue_id="1"))
-
-    @requests_mock.Mocker()
-    def test_issue_not_found(self, m):
-        m.register_uri(method="GET", url="https://server/api/issues/1", status_code=HTTPStatus.NOT_FOUND)
-        self.assertFalse(exists(self.client.get_issue, issue_id="1"))
