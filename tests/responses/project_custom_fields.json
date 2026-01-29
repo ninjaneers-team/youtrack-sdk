@@ -1,0 +1,159 @@
+[
+  {
+    "field": {
+      "fieldType": {
+        "$type": "FieldType"
+      },
+      "name": "Priority",
+      "$type": "CustomField"
+    },
+    "project": {
+      "shortName": "DEMO",
+      "$type": "Project"
+    },
+    "bundle": {
+      "$type": "EnumBundle",
+      "id": "100-1",
+      "values": [
+        {
+          "$type": "EnumBundleElement",
+          "id": "100-2",
+          "name": "Critical"
+        },
+        {
+          "$type": "EnumBundleElement",
+          "id": "100-3",
+          "name": "High"
+        },
+        {
+          "$type": "EnumBundleElement",
+          "id": "100-4",
+          "name": "Normal"
+        },
+        {
+          "$type": "EnumBundleElement",
+          "id": "100-5",
+          "name": "Low"
+        }
+      ]
+    },
+    "canBeEmpty": true,
+    "isPublic": true,
+    "id": "82-9",
+    "$type": "EnumProjectCustomField"
+  },
+  {
+    "field": {
+      "fieldType": {
+        "$type": "FieldType"
+      },
+      "name": "Type",
+      "$type": "CustomField"
+    },
+    "project": {
+      "shortName": "DEMO",
+      "$type": "Project"
+    },
+    "bundle": {
+      "$type": "EnumBundle",
+      "id": "101-1",
+      "values": [
+        {
+          "$type": "EnumBundleElement",
+          "id": "101-2",
+          "name": "Bug"
+        },
+        {
+          "$type": "EnumBundleElement",
+          "id": "101-3",
+          "name": "Feature"
+        },
+        {
+          "$type": "EnumBundleElement",
+          "id": "101-4",
+          "name": "Task"
+        }
+      ]
+    },
+    "canBeEmpty": false,
+    "isPublic": true,
+    "id": "82-10",
+    "$type": "EnumProjectCustomField"
+  },
+  {
+    "field": {
+      "fieldType": {
+        "$type": "FieldType"
+      },
+      "name": "State",
+      "$type": "CustomField"
+    },
+    "project": {
+      "shortName": "DEMO",
+      "$type": "Project"
+    },
+    "bundle": {
+      "$type": "StateBundle",
+      "id": "102-1",
+      "values": [
+        {
+          "$type": "StateBundleElement",
+          "id": "102-2",
+          "name": "Open"
+        },
+        {
+          "$type": "StateBundleElement",
+          "id": "102-3",
+          "name": "In Progress"
+        },
+        {
+          "$type": "StateBundleElement",
+          "id": "102-4",
+          "name": "Fixed"
+        },
+        {
+          "$type": "StateBundleElement",
+          "id": "102-5",
+          "name": "Verified"
+        }
+      ]
+    },
+    "canBeEmpty": false,
+    "isPublic": true,
+    "id": "82-11",
+    "$type": "StateProjectCustomField"
+  },
+  {
+    "field": {
+      "fieldType": {
+        "$type": "FieldType"
+      },
+      "name": "Assignee",
+      "$type": "CustomField"
+    },
+    "project": {
+      "shortName": "DEMO",
+      "$type": "Project"
+    },
+    "bundle": {
+      "$type": "UserBundle",
+      "id": "103-1",
+      "values": [
+        {
+          "$type": "User",
+          "id": "103-2",
+          "name": "John Doe"
+        },
+        {
+          "$type": "User",
+          "id": "103-3",
+          "name": "Jane Smith"
+        }
+      ]
+    },
+    "canBeEmpty": true,
+    "isPublic": true,
+    "id": "84-111",
+    "$type": "UserProjectCustomField"
+  }
+]

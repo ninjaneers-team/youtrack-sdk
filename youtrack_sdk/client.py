@@ -21,6 +21,7 @@ from youtrack_sdk.entities import IssueLink
 from youtrack_sdk.entities import IssueLinkType
 from youtrack_sdk.entities import IssueWorkItem
 from youtrack_sdk.entities import Project
+from youtrack_sdk.entities import ProjectCustomFieldType
 from youtrack_sdk.entities import Sprint
 from youtrack_sdk.entities import Tag
 from youtrack_sdk.entities import User
@@ -269,6 +270,27 @@ class Client(BaseClient):
                     muteUpdateNotifications=mute_update_notifications,
                 ),
                 data=field,
+            ),
+        )
+
+    def get_project_custom_fields(
+        self,
+        *,
+        project_id: str,
+        offset: int = 0,
+        count: int = -1,
+    ) -> Sequence[ProjectCustomFieldType]:
+        """Get the list of custom fields that are attached to a specific project.
+
+        https://www.jetbrains.com/help/youtrack/devportal/resource-api-admin-projects-projectID-customFields.html#get_all-ProjectCustomField-method
+        """
+        return TypeAdapter(tuple[ProjectCustomFieldType, ...]).validate_json(
+            self._get_bytes(
+                url=self._build_url(
+                    path=f"/admin/projects/{project_id}/customFields",
+                    fields=f"{model_to_field_names(ProjectCustomFieldType)},field(name,fieldType(id)),bundle(values(id,name))",
+                    **{"$skip": offset, "$top": count if count != -1 else None},
+                ),
             ),
         )
 

@@ -21,6 +21,7 @@ from youtrack_sdk.types import YouTrackDateTime
 class UserTypeName(StrEnum):
     USER = "User"
     ME = "Me"
+    PROJECT_TEAM = "ProjectTeam"
 
 
 @final
@@ -33,6 +34,15 @@ class User(BaseModel):
     ring_id: Optional[str] = Field(alias="ringId", default=None)
     login: Optional[str] = None
     email: Optional[str] = None
+
+
+@final
+class ProjectTeam(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[UserTypeName.PROJECT_TEAM] = Field(alias="$type", default=UserTypeName.PROJECT_TEAM)
+    id: Optional[str] = None
+    name: Optional[str] = None
 
 
 @final
@@ -147,6 +157,70 @@ BundleElement = Annotated[
 
 
 @final
+class BundleTypeName(StrEnum):
+    BUILD = "BuildBundle"
+    VERSION = "VersionBundle"
+    OWNED = "OwnedBundle"
+    ENUM = "EnumBundle"
+    STATE = "StateBundle"
+    USER = "UserBundle"
+
+
+@final
+class BuildBundle(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleTypeName.BUILD] = Field(alias="$type", default=BundleTypeName.BUILD)
+    id: Optional[str] = None
+    values: Optional[Sequence[BuildBundleElement]] = None
+
+
+@final
+class VersionBundle(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleTypeName.VERSION] = Field(alias="$type", default=BundleTypeName.VERSION)
+    id: Optional[str] = None
+    values: Optional[Sequence[VersionBundleElement]] = None
+
+
+@final
+class OwnedBundle(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleTypeName.OWNED] = Field(alias="$type", default=BundleTypeName.OWNED)
+    id: Optional[str] = None
+    values: Optional[Sequence[OwnedBundleElement]] = None
+
+
+@final
+class EnumBundle(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleTypeName.ENUM] = Field(alias="$type", default=BundleTypeName.ENUM)
+    id: Optional[str] = None
+    values: Optional[Sequence[EnumBundleElement]] = None
+
+
+@final
+class StateBundle(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleTypeName.STATE] = Field(alias="$type", default=BundleTypeName.STATE)
+    id: Optional[str] = None
+    values: Optional[Sequence[StateBundleElement]] = None
+
+
+@final
+class UserBundle(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleTypeName.USER] = Field(alias="$type", default=BundleTypeName.USER)
+    id: Optional[str] = None
+    values: Optional[Sequence[User | ProjectTeam]] = None
+
+
+@final
 class UserGroupTypeName(StrEnum):
     USER_GROUP = "UserGroup"
 
@@ -184,6 +258,7 @@ class CustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
     type: Literal[CustomFieldTypeName.CUSTOM_FIELD] = Field(alias="$type", default=CustomFieldTypeName.CUSTOM_FIELD)
+    name: Optional[str] = None
     field_type: Optional[FieldType] = Field(alias="fieldType", default=None)
 
 
@@ -202,95 +277,130 @@ class ProjectCustomFieldTypeName(StrEnum):
     PERIOD = "PeriodProjectCustomField"
 
 
-class ProjectCustomField(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, frozen=True)
-
-    field: Optional[CustomField] = None
-
-
 @final
-class GroupProjectCustomField(ProjectCustomField):
+class GroupProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.GROUP] = Field(alias="$type", default=ProjectCustomFieldTypeName.GROUP)
+    field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
 
 
 @final
 class BundleProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.BUNDLE] = Field(alias="$type", default=ProjectCustomFieldTypeName.BUNDLE)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
 
 
 @final
 class BuildProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.BUILD] = Field(alias="$type", default=ProjectCustomFieldTypeName.BUILD)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
+    bundle: Optional["BuildBundle"] = None
 
 
 @final
 class EnumProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.ENUM] = Field(alias="$type", default=ProjectCustomFieldTypeName.ENUM)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
+    bundle: Optional["EnumBundle"] = None
 
 
 @final
 class OwnedProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.OWNED] = Field(alias="$type", default=ProjectCustomFieldTypeName.OWNED)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
+    bundle: Optional["OwnedBundle"] = None
 
 
 @final
 class StateProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.STATE] = Field(alias="$type", default=ProjectCustomFieldTypeName.STATE)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
+    bundle: Optional["StateBundle"] = None
 
 
 @final
 class UserProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.USER] = Field(alias="$type", default=ProjectCustomFieldTypeName.USER)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
+    bundle: Optional["UserBundle"] = None
 
 
 @final
 class VersionProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.VERSION] = Field(alias="$type", default=ProjectCustomFieldTypeName.VERSION)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
+    bundle: Optional["VersionBundle"] = None
 
 
 class SimpleProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.SIMPLE] = Field(alias="$type", default=ProjectCustomFieldTypeName.SIMPLE)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
 
 
 @final
 class TextProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.TEXT] = Field(alias="$type", default=ProjectCustomFieldTypeName.TEXT)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
 
 
 @final
 class PeriodProjectCustomField(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
+    id: Optional[str] = None
     type: Literal[ProjectCustomFieldTypeName.PERIOD] = Field(alias="$type", default=ProjectCustomFieldTypeName.PERIOD)
     field: Optional[CustomField] = None
+    can_be_empty: Optional[bool] = Field(alias="canBeEmpty", default=None)
+    is_public: Optional[bool] = Field(alias="isPublic", default=None)
 
 
 ProjectCustomFieldType = Annotated[
@@ -328,15 +438,6 @@ class IssueCustomFieldTypeName(StrEnum):
     SINGLE_USER = "SingleUserIssueCustomField"
     SINGLE_VERSION = "SingleVersionIssueCustomField"
     STATE = "StateIssueCustomField"
-
-
-@final
-class IssueCustomField(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, frozen=True)
-
-    id: Optional[str] = None
-    name: Optional[str] = None
-    project_custom_field: Optional[ProjectCustomFieldType] = Field(alias="projectCustomField", default=None)
 
 
 @final

@@ -28,6 +28,7 @@ from youtrack_sdk.client import Client
 from youtrack_sdk.entities import Agile
 from youtrack_sdk.entities import AgileRef
 from youtrack_sdk.entities import DurationValue
+from youtrack_sdk.entities import EnumProjectCustomField
 from youtrack_sdk.entities import Issue
 from youtrack_sdk.entities import IssueAttachment
 from youtrack_sdk.entities import IssueComment
@@ -37,8 +38,10 @@ from youtrack_sdk.entities import IssueWorkItem
 from youtrack_sdk.entities import Project
 from youtrack_sdk.entities import Sprint
 from youtrack_sdk.entities import SprintRef
+from youtrack_sdk.entities import StateProjectCustomField
 from youtrack_sdk.entities import Tag
 from youtrack_sdk.entities import User
+from youtrack_sdk.entities import UserProjectCustomField
 from youtrack_sdk.entities import WorkItemType
 from youtrack_sdk.exceptions import YouTrackException
 from youtrack_sdk.exceptions import YouTrackNotFound
@@ -263,6 +266,49 @@ def test_get_project_work_item_types(client: Client) -> None:
             name="Documentation",
         ),
     )
+
+
+@mock_response(
+    url="https://server/api/admin/projects/DEMO/customFields",
+    response_name="project_custom_fields",
+)
+def test_get_project_custom_fields(client: Client) -> None:
+    """Test fetching custom fields for a project."""
+    result: Final = client.get_project_custom_fields(project_id="DEMO")
+    assert len(result) == 4
+
+    # Check first field (EnumProjectCustomField - Priority)
+    assert isinstance(result[0], EnumProjectCustomField)
+    assert result[0].id == "82-9"
+    assert result[0].bundle is not None
+    assert result[0].bundle.id == "100-1"
+    assert result[0].bundle.values is not None
+    assert len(result[0].bundle.values) == 4
+    assert result[0].bundle.values[0].name == "Critical"
+    assert result[0].bundle.values[3].name == "Low"
+
+    # Check second field (EnumProjectCustomField - Type)
+    assert isinstance(result[1], EnumProjectCustomField)
+    assert result[1].bundle is not None
+    assert result[1].bundle.values is not None
+    assert len(result[1].bundle.values) == 3
+    assert result[1].bundle.values[0].name == "Bug"
+
+    # Check third field (StateProjectCustomField)
+    assert isinstance(result[2], StateProjectCustomField)
+    assert result[2].id == "82-11"
+    assert result[2].bundle is not None
+    assert result[2].bundle.values is not None
+    assert len(result[2].bundle.values) == 4
+    assert result[2].bundle.values[1].name == "In Progress"
+
+    # Check last field (UserProjectCustomField)
+    assert isinstance(result[3], UserProjectCustomField)
+    assert result[3].id == "84-111"
+    assert result[3].bundle is not None
+    assert result[3].bundle.values is not None
+    assert len(result[3].bundle.values) == 2
+    assert result[3].bundle.values[0].name == "John Doe"
 
 
 @mock_response(url="https://server/api/tags", response_name="tags")
