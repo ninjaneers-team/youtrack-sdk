@@ -65,6 +65,8 @@ class BaseClient:
                 httpx_timeout = httpx.Timeout(
                     connect=timeout.connect_timeout,
                     read=timeout.read_timeout,
+                    write=None,
+                    pool=None,
                 )
         return httpx_timeout
 
