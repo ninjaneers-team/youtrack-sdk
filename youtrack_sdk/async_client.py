@@ -8,11 +8,11 @@ from typing import Optional
 from typing import final
 
 import httpx
+from pydantic import BaseModel
 from pydantic import TypeAdapter
 
 from youtrack_sdk.base_client import BaseClient
 from youtrack_sdk.entities import Agile
-from youtrack_sdk.entities import BaseModel
 from youtrack_sdk.entities import Issue
 from youtrack_sdk.entities import IssueAttachment
 from youtrack_sdk.entities import IssueComment
@@ -35,21 +35,21 @@ from youtrack_sdk.types import TimeoutSpec
 
 
 @final
-class Client(BaseClient):
+class AsyncClient(BaseClient):
     def __init__(
         self,
         *,
         base_url: str,
         token: str,
         timeout: Optional[int | float | TimeoutSpec] = None,
-        client: Optional[httpx.Client] = None,
+        client: Optional[httpx.AsyncClient] = None,
     ) -> None:
         """
         :param base_url: YouTrack instance URL (e.g. https://example.com/youtrack)
         :param token: Permanent YouTrack token
         :param timeout: (optional) How long to wait for the server to send data before giving up,
             as a float or int, or timeout spec
-        :param client: (optional) Custom httpx.Client instance to use for requests
+        :param client: (optional) Custom httpx.AsyncClient instance to use for requests
         """
         super().__init__(base_url=base_url, timeout=timeout)
         httpx_timeout: Final = BaseClient._to_httpx_timeout(timeout)
@@ -59,7 +59,7 @@ class Client(BaseClient):
             client.timeout = httpx_timeout
 
         self._client: Final = (
-            httpx.Client(
+            httpx.AsyncClient(
                 headers=BaseClient._get_headers(token),
                 timeout=httpx_timeout,
             )
@@ -67,7 +67,7 @@ class Client(BaseClient):
             else client
         )
 
-    def _send_request(
+    async def _send_request(
         self,
         *,
         method: HTTPMethod,
@@ -76,7 +76,7 @@ class Client(BaseClient):
         files: Optional[dict[str, IO[bytes]]] = None,
     ) -> Optional[bytes]:
         headers: Final = {} if data is None else {"Content-Type": "application/json"}
-        response: Final = self._client.request(
+        response: Final = await self._client.request(
             method=method,
             url=url,
             content=data and obj_to_json(data),
@@ -103,15 +103,15 @@ class Client(BaseClient):
 
         return response.content
 
-    def _get_bytes(self, *, url: str) -> bytes:
+    async def _get_bytes(self, *, url: str) -> bytes:
         """Get request that raises if response is None."""
-        response: Final = self._send_request(method=HTTPMethod.GET, url=url)
+        response: Final = await self._send_request(method=HTTPMethod.GET, url=url)
         if response is None:
             msg: Final = f"Unexpected empty response from GET {url}"
             raise YouTrackException(msg)
         return response
 
-    def _post_bytes(
+    async def _post_bytes(
         self,
         *,
         url: str,
@@ -119,7 +119,7 @@ class Client(BaseClient):
         files: Optional[dict[str, IO[bytes]]] = None,
     ) -> bytes:
         """Post request that raises if response is `None`."""
-        response: Final = self._send_request(
+        response: Final = await self._send_request(
             method=HTTPMethod.POST,
             url=url,
             data=data,
@@ -130,33 +130,33 @@ class Client(BaseClient):
             raise YouTrackException(msg)
         return response
 
-    def _get(self, *, url: str) -> Optional[bytes]:
-        return self._send_request(method=HTTPMethod.GET, url=url)
+    async def _get(self, *, url: str) -> Optional[bytes]:
+        return await self._send_request(method=HTTPMethod.GET, url=url)
 
-    def _post(
+    async def _post(
         self,
         *,
         url: str,
         data: Optional[BaseModel] = None,
         files: Optional[dict[str, IO[bytes]]] = None,
     ) -> Optional[bytes]:
-        return self._send_request(
+        return await self._send_request(
             method=HTTPMethod.POST,
             url=url,
             data=data,
             files=files,
         )
 
-    def _delete(self, *, url: str) -> Optional[bytes]:
-        return self._send_request(method=HTTPMethod.DELETE, url=url)
+    async def _delete(self, *, url: str) -> Optional[bytes]:
+        return await self._send_request(method=HTTPMethod.DELETE, url=url)
 
-    def get_issue(self, *, issue_id: str) -> Issue:
+    async def get_issue(self, *, issue_id: str) -> Issue:
         """Read an issue with specific ID.
 
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues.html#get-Issue-method
         """
         return Issue.model_validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}",
                     fields=model_to_field_names(Issue),
@@ -164,7 +164,7 @@ class Client(BaseClient):
             ),
         )
 
-    def get_issues[T](
+    async def get_issues[T](
         self,
         *,
         model: type[T] = Issue,
@@ -179,7 +179,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues.html#get_all-Issue-method
         """
         return TypeAdapter(tuple[model, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path="/issues/",
                     fields=model_to_field_names(model),
@@ -191,13 +191,13 @@ class Client(BaseClient):
             ),
         )
 
-    def create_issue(self, *, issue: Issue) -> Issue:
+    async def create_issue(self, *, issue: Issue) -> Issue:
         """Create new issue.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues.html#create-Issue-method
         """
         return Issue.model_validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path="/issues",
                     fields=model_to_field_names(Issue),
@@ -206,7 +206,7 @@ class Client(BaseClient):
             ),
         )
 
-    def update_issue(
+    async def update_issue(
         self,
         *,
         issue_id: str,
@@ -218,7 +218,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues.html#update-Issue-method
         """
         return Issue.model_validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}",
                     fields=model_to_field_names(Issue),
@@ -228,7 +228,7 @@ class Client(BaseClient):
             ),
         )
 
-    def get_issue_custom_fields(
+    async def get_issue_custom_fields(
         self,
         *,
         issue_id: str,
@@ -240,7 +240,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-customFields.html#get_all-IssueCustomField-method
         """
         return TypeAdapter(tuple[IssueCustomFieldType, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/customFields",
                     fields=model_to_field_names(IssueCustomFieldType),
@@ -250,7 +250,7 @@ class Client(BaseClient):
             ),
         )
 
-    def update_issue_custom_field(
+    async def update_issue_custom_field(
         self,
         *,
         issue_id: str,
@@ -262,7 +262,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues-issueID-customFields.html#update-IssueCustomField-method
         """
         return TypeAdapter(IssueCustomFieldType).validate_json(  # type: ignore[return-value]
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/customFields/{field.id}",
                     fields=model_to_field_names(IssueCustomFieldType),
@@ -272,14 +272,14 @@ class Client(BaseClient):
             ),
         )
 
-    def delete_issue(self, *, issue_id: str) -> None:
+    async def delete_issue(self, *, issue_id: str) -> None:
         """Delete the issue.
 
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues.html#delete-Issue-method
         """
-        self._delete(url=self._build_url(path=f"/issues/{issue_id}"))
+        await self._delete(url=self._build_url(path=f"/issues/{issue_id}"))
 
-    def get_issue_comments(
+    async def get_issue_comments(
         self,
         *,
         issue_id: str,
@@ -291,7 +291,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-comments.html#get_all-IssueComment-method
         """
         return TypeAdapter(tuple[IssueComment, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/comments",
                     fields=model_to_field_names(IssueComment),
@@ -301,7 +301,7 @@ class Client(BaseClient):
             ),
         )
 
-    def create_issue_comment(
+    async def create_issue_comment(
         self,
         *,
         issue_id: str,
@@ -312,7 +312,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-comments.html#create-IssueComment-method
         """
         return IssueComment.model_validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/comments",
                     fields=model_to_field_names(IssueComment),
@@ -321,7 +321,7 @@ class Client(BaseClient):
             ),
         )
 
-    def update_issue_comment(
+    async def update_issue_comment(
         self,
         *,
         issue_id: str,
@@ -333,7 +333,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues-issueID-comments.html#update-IssueComment-method
         """
         return IssueComment.model_validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/comments/{comment.id}",
                     fields=model_to_field_names(IssueComment),
@@ -343,26 +343,26 @@ class Client(BaseClient):
             ),
         )
 
-    def hide_issue_comment(self, *, issue_id: str, comment_id: str) -> None:
+    async def hide_issue_comment(self, *, issue_id: str, comment_id: str) -> None:
         """Hide a specific issue comment.
 
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues-issueID-comments.html#update-IssueComment-method
         """
-        self.update_issue_comment(
+        await self.update_issue_comment(
             issue_id=issue_id,
             comment=(IssueComment(id=comment_id, deleted=True)),
         )
 
-    def delete_issue_comment(self, *, issue_id: str, comment_id: str) -> None:
+    async def delete_issue_comment(self, *, issue_id: str, comment_id: str) -> None:
         """Delete a specific issue comment.
 
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues-issueID-comments.html#delete-IssueComment-method
         """
-        self._delete(
+        await self._delete(
             url=self._build_url(path=f"/issues/{issue_id}/comments/{comment_id}"),
         )
 
-    def get_issue_attachments(
+    async def get_issue_attachments(
         self,
         *,
         issue_id: str,
@@ -374,7 +374,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-attachments.html#get_all-IssueAttachment-method
         """
         return TypeAdapter(tuple[IssueAttachment, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/attachments",
                     fields=model_to_field_names(IssueAttachment),
@@ -384,7 +384,7 @@ class Client(BaseClient):
             ),
         )
 
-    def create_issue_attachments(
+    async def create_issue_attachments(
         self,
         *,
         issue_id: str,
@@ -396,7 +396,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/api-usecase-attach-files.html
         """
         return TypeAdapter(tuple[IssueAttachment, ...]).validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/attachments",
                     fields=model_to_field_names(IssueAttachment),
@@ -405,7 +405,7 @@ class Client(BaseClient):
             ),
         )
 
-    def create_comment_attachments(
+    async def create_comment_attachments(
         self,
         *,
         issue_id: str,
@@ -413,7 +413,7 @@ class Client(BaseClient):
         files: dict[str, IO[bytes]],
     ) -> Sequence[IssueAttachment]:
         return TypeAdapter(tuple[IssueAttachment, ...]).validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/comments/{comment_id}/attachments",
                     fields=model_to_field_names(IssueAttachment),
@@ -422,13 +422,13 @@ class Client(BaseClient):
             ),
         )
 
-    def get_issue_work_items(self, *, issue_id: str, offset: int = 0, count: int = -1) -> Sequence[IssueWorkItem]:
+    async def get_issue_work_items(self, *, issue_id: str, offset: int = 0, count: int = -1) -> Sequence[IssueWorkItem]:
         """Get the list of all work items of the specific issue.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-timeTracking-workItems.html#get_all-IssueWorkItem-method
         """
         return TypeAdapter(tuple[IssueWorkItem, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/timeTracking/workItems",
                     fields=model_to_field_names(IssueWorkItem),
@@ -438,13 +438,13 @@ class Client(BaseClient):
             ),
         )
 
-    def create_issue_work_item(self, *, issue_id: str, issue_work_item: IssueWorkItem) -> IssueWorkItem:
+    async def create_issue_work_item(self, *, issue_id: str, issue_work_item: IssueWorkItem) -> IssueWorkItem:
         """Add a new work item to the issue.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-timeTracking-workItems.html#create-IssueWorkItem-method
         """
         return IssueWorkItem.model_validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/timeTracking/workItems",
                     fields=model_to_field_names(IssueWorkItem),
@@ -453,13 +453,13 @@ class Client(BaseClient):
             ),
         )
 
-    def get_projects(self, offset: int = 0, count: int = -1) -> Sequence[Project]:
+    async def get_projects(self, offset: int = 0, count: int = -1) -> Sequence[Project]:
         """Get a list of all available projects in the system.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-admin-projects.html#get_all-Project-method
         """
         return TypeAdapter(tuple[Project, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path="/admin/projects",
                     fields=model_to_field_names(Project),
@@ -469,7 +469,7 @@ class Client(BaseClient):
             ),
         )
 
-    def get_project_work_item_types(
+    async def get_project_work_item_types(
         self,
         *,
         project_id: str,
@@ -481,7 +481,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-admin-projects-projectID-timeTrackingSettings-workItemTypes.html#get_all-WorkItemType-method
         """
         return TypeAdapter(tuple[WorkItemType, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/admin/projects/{project_id}/timeTrackingSettings/workItemTypes",
                     fields=model_to_field_names(WorkItemType),
@@ -491,13 +491,13 @@ class Client(BaseClient):
             ),
         )
 
-    def get_tags(self, offset: int = 0, count: int = -1) -> Sequence[Tag]:
+    async def get_tags(self, offset: int = 0, count: int = -1) -> Sequence[Tag]:
         """Get all tags that are visible to the current user.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-tags.html#get_all-Tag-method
         """
         return TypeAdapter(tuple[Tag, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path="/tags",
                     fields=model_to_field_names(Tag),
@@ -507,23 +507,23 @@ class Client(BaseClient):
             ),
         )
 
-    def add_issue_tag(self, *, issue_id: str, tag: Tag) -> None:
+    async def add_issue_tag(self, *, issue_id: str, tag: Tag) -> None:
         """Tag the issue with an existing tag.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-tags.html#create-Tag-method
         """
-        self._post(
+        await self._post(
             url=self._build_url(path=f"/issues/{issue_id}/tags"),
             data=tag,
         )
 
-    def get_users(self, offset: int = 0, count: int = -1) -> Sequence[User]:
+    async def get_users(self, offset: int = 0, count: int = -1) -> Sequence[User]:
         """Read the list of users in YouTrack.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-users.html#get_all-User-method
         """
         return TypeAdapter(tuple[User, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path="/users",
                     fields=model_to_field_names(User),
@@ -533,7 +533,7 @@ class Client(BaseClient):
             ),
         )
 
-    def get_issue_links(
+    async def get_issue_links(
         self,
         issue_id: str,
         offset: int = 0,
@@ -544,7 +544,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-links.html#get_all-IssueLink-method
         """
         return TypeAdapter(tuple[IssueLink, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/issues/{issue_id}/links",
                     fields=model_to_field_names(IssueLink),
@@ -554,7 +554,7 @@ class Client(BaseClient):
             ),
         )
 
-    def get_issue_link_types(
+    async def get_issue_link_types(
         self,
         offset: int = 0,
         count: int = -1,
@@ -564,7 +564,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issueLinkTypes.html#get_all-IssueLinkType-method
         """
         return TypeAdapter(tuple[IssueLinkType, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path="/issueLinkTypes",
                     fields=model_to_field_names(IssueLinkType),
@@ -574,7 +574,7 @@ class Client(BaseClient):
             ),
         )
 
-    def link_issues(
+    async def link_issues(
         self,
         *,
         source_issue_id: str,
@@ -587,7 +587,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues-issueID-links-linkID-issues.html#create-Issue-method
         """
         return TypeAdapter(Issue).validate_json(
-            self._post_bytes(
+            await self._post_bytes(
                 url=self._build_url(
                     path=f"/issues/{source_issue_id}/links/{link_type_id}{link_direction.value}/issues",
                     fields=model_to_field_names(Issue),
@@ -596,7 +596,7 @@ class Client(BaseClient):
             ),
         )
 
-    def delete_issue_link(
+    async def delete_issue_link(
         self,
         *,
         source_issue_id: str,
@@ -607,17 +607,17 @@ class Client(BaseClient):
 
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-issues-issueID-links-linkID-issues.html#delete-Issue-method
         """
-        self._delete(
+        await self._delete(
             url=self._build_url(path=f"/issues/{source_issue_id}/links/{link_type_id}/issues/{target_issue_id}"),
         )
 
-    def get_agiles(self, *, offset: int = 0, count: int = -1) -> Sequence[Agile]:
+    async def get_agiles(self, *, offset: int = 0, count: int = -1) -> Sequence[Agile]:
         """Get the list of all available agile boards in the system.
 
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-agiles.html#get_all-Agile-method
         """
         return TypeAdapter(tuple[Agile, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path="/agiles",
                     fields=model_to_field_names(Agile),
@@ -627,13 +627,13 @@ class Client(BaseClient):
             ),
         )
 
-    def get_agile(self, *, agile_id: str) -> Agile:
+    async def get_agile(self, *, agile_id: str) -> Agile:
         """Get settings of the specific agile board.
 
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-agiles.html#get-Agile-method
         """
         return Agile.model_validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/agiles/{agile_id}",
                     fields=model_to_field_names(Agile),
@@ -641,7 +641,7 @@ class Client(BaseClient):
             ),
         )
 
-    def get_sprints(
+    async def get_sprints(
         self,
         *,
         agile_id: str,
@@ -653,7 +653,7 @@ class Client(BaseClient):
         https://www.jetbrains.com/help/youtrack/devportal/resource-api-agiles-agileID-sprints.html#get_all-Sprint-method
         """
         return TypeAdapter(tuple[Sprint, ...]).validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/agiles/{agile_id}/sprints",
                     fields=model_to_field_names(Sprint),
@@ -663,13 +663,13 @@ class Client(BaseClient):
             ),
         )
 
-    def get_sprint(self, *, agile_id: str, sprint_id: str) -> Sprint:
+    async def get_sprint(self, *, agile_id: str, sprint_id: str) -> Sprint:
         """Get settings of the specific sprint of the agile board.
 
         https://www.jetbrains.com/help/youtrack/devportal/operations-api-agiles-agileID-sprints.html#get-Sprint-method
         """
         return Sprint.model_validate_json(
-            self._get_bytes(
+            await self._get_bytes(
                 url=self._build_url(
                     path=f"/agiles/{agile_id}/sprints/{sprint_id}",
                     fields=model_to_field_names(Sprint),
@@ -677,14 +677,14 @@ class Client(BaseClient):
             ),
         )
 
-    def __enter__(self) -> "Client":
-        self._client.__enter__()
+    async def __aenter__(self) -> "AsyncClient":
+        await self._client.__aenter__()
         return self
 
-    def __exit__(
+    async def __aexit__(
         self,
         exception_type: Optional[type[BaseException]] = None,
         exception_value: Optional[BaseException] = None,
         traceback: Optional[TracebackType] = None,
     ) -> None:
-        self._client.__exit__(exception_type, exception_value, traceback)
+        await self._client.__aexit__(exception_type, exception_value, traceback)
