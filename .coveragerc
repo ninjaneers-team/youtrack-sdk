@@ -1,0 +1,9 @@
+[run]
+branch = True
+relative_files = True
+
+[report]
+omit = tests/*
+show_missing = True
+skip_covered = False
+precision = 2

@@ -1,0 +1,68 @@
+name: Lint and Test (ruff + pyright + pytest)
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/uv.lock
+
+      - name: Show uv version
+        run: uv --version
+
+      - name: Sync dependencies (frozen)
+        run: uv sync --frozen
+
+      - name: Check formatting (ruff)
+        run: uv run ruff format --check
+
+      - name: Lint (ruff)
+        run: uv run ruff check
+
+      - name: Static type checking
+        run: uv run pyright
+
+      - name: Tests with coverage (pytest-cov)
+        run: |
+          uv run \
+            pytest src/test/ \
+              --cov=youtrack_sdk \
+              --cov-branch \
+              --cov-config="${{ github.workspace }}/.coveragerc" \
+              --cov-report=term-missing:skip-covered \
+              --cov-report=xml:coverage.xml \
+              --cov-report=html:coverage_html \
+              --cov-fail-under=85
+
+      - name: Add coverage summary
+        run: |
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          r = float(ET.parse('coverage.xml').getroot().get('branch-rate'))*100
+          print(f"coverage: {r:.2f}%")
+          PY
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            coverage_html
+          if-no-files-found: ignore
+          retention-days: 14

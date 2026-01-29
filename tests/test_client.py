@@ -1,55 +1,59 @@
-from datetime import UTC, datetime
+from collections.abc import Callable
+from datetime import UTC
+from datetime import datetime
 from functools import wraps
 from http import HTTPMethod
 from pathlib import Path
+from typing import Any
 from unittest import TestCase
-from unittest.mock import ANY, patch
+from unittest.mock import ANY
+from unittest.mock import patch
 
-import requests_mock
-from requests import ConnectTimeout
+import httpx
+import respx
 
 import youtrack_sdk.client
+from tests.test_definitions import TEST_AGILE
+from tests.test_definitions import TEST_CUSTOM_ISSUE
+from tests.test_definitions import TEST_CUSTOM_ISSUE_2
+from tests.test_definitions import TEST_ISSUE
+from tests.test_definitions import TEST_ISSUE_2
+from tests.test_definitions import TEST_SPRINT
+from tests.test_definitions import CustomIssue
 from youtrack_sdk.client import Client
-from youtrack_sdk.entities import (
-    Agile,
-    AgileRef,
-    DurationValue,
-    Issue,
-    IssueAttachment,
-    IssueComment,
-    IssueLink,
-    IssueLinkType,
-    IssueWorkItem,
-    Project,
-    Sprint,
-    SprintRef,
-    Tag,
-    User,
-    WorkItemType,
-)
-
-from .test_definitions import (
-    TEST_AGILE,
-    TEST_CUSTOM_ISSUE,
-    TEST_CUSTOM_ISSUE_2,
-    TEST_ISSUE,
-    TEST_ISSUE_2,
-    TEST_SPRINT,
-    CustomIssue,
-)
+from youtrack_sdk.entities import Agile
+from youtrack_sdk.entities import AgileRef
+from youtrack_sdk.entities import DurationValue
+from youtrack_sdk.entities import Issue
+from youtrack_sdk.entities import IssueAttachment
+from youtrack_sdk.entities import IssueComment
+from youtrack_sdk.entities import IssueLink
+from youtrack_sdk.entities import IssueLinkType
+from youtrack_sdk.entities import IssueWorkItem
+from youtrack_sdk.entities import Project
+from youtrack_sdk.entities import Sprint
+from youtrack_sdk.entities import SprintRef
+from youtrack_sdk.entities import Tag
+from youtrack_sdk.entities import User
+from youtrack_sdk.entities import WorkItemType
 
 
-def mock_response(url: str, response_name: str, method: HTTPMethod = HTTPMethod.GET):
-    def wrapper(func):
+def mock_response(
+    url: str,
+    response_name: str,
+    method: HTTPMethod = HTTPMethod.GET,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        @requests_mock.Mocker()
-        def inner(self, m, *args, **kwargs):
-            m.register_uri(
-                method=method,
-                url=url,
-                text=(Path(__file__).parent / "responses" / f"{response_name}.json").read_text(),
-            )
-            return func(self, *args, **kwargs)
+        def inner(self: Any, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            with respx.mock:
+                respx.route(method=method, url=url).mock(
+                    return_value=httpx.Response(
+                        200,
+                        text=(Path(__file__).parent / "responses" / f"{response_name}.json").read_text(),
+                    )
+                )
+                return func(self, *args, **kwargs)
 
         return inner
 
@@ -57,52 +61,51 @@ def mock_response(url: str, response_name: str, method: HTTPMethod = HTTPMethod.
 
 
 class TestClient(TestCase):
-    def setUp(self):
-        self.client = Client(base_url="https://server", token="test")
+    def setUp(self) -> None:
+        self.client = Client(base_url="https://server", token="test")  # noqa: S106
 
-    @patch.object(youtrack_sdk.client.Session, "request", side_effect=ConnectTimeout)
-    def test_client_timeout(self, mock_request):
-        client = Client(base_url="https://server", token="test", timeout=123)
-        with self.assertRaises(ConnectTimeout):
+    @patch.object(youtrack_sdk.client.httpx.Client, "request", side_effect=httpx.ConnectTimeout("timeout"))
+    def test_client_timeout(self, mock_request: Any) -> None:  # noqa: ANN401
+        client = Client(base_url="https://server", token="test", timeout=123)  # noqa: S106
+        with self.assertRaises(httpx.ConnectTimeout):
             client.get_issue(issue_id="1")
         mock_request.assert_called_once_with(
             method=HTTPMethod.GET,
             url=ANY,
-            data=None,
+            content=None,
             files=None,
-            headers=None,
-            timeout=123,
+            headers={},
         )
 
-    def test_get_absolute_url(self):
+    def test_get_absolute_url(self) -> None:
         self.assertEqual(self.client.get_absolute_url(path="/issue/1"), "https://server/issue/1")
 
     @mock_response(url="https://server/api/issues/1", response_name="issue")
-    def test_get_issue(self):
+    def test_get_issue(self) -> None:
         self.assertEqual(
             TEST_ISSUE,
             self.client.get_issue(issue_id="1"),
         )
 
-    def test_issue_url(self):
+    def test_issue_url(self) -> None:
         self.assertEqual(TEST_ISSUE.url, "/issue/HD-25")
 
     @mock_response(url="https://server/api/issues/", response_name="issues")
-    def test_get_issues(self):
+    def test_get_issues(self) -> None:
         self.assertEqual(
             (TEST_ISSUE, TEST_ISSUE_2),
             self.client.get_issues(query="in:TD for:me"),
         )
 
     @mock_response(url="https://server/api/issues/", response_name="issues_custom_model")
-    def test_get_issues_custom_model(self):
+    def test_get_issues_custom_model(self) -> None:
         self.assertEqual(
             (TEST_CUSTOM_ISSUE, TEST_CUSTOM_ISSUE_2),
             self.client.get_issues(model=CustomIssue, custom_fields=["State", "Type"]),
         )
 
     @mock_response(url="https://server/api/issues/1/comments", response_name="issue_comments")
-    def test_get_issue_comments(self):
+    def test_get_issue_comments(self) -> None:
         self.assertEqual(
             (
                 IssueComment.model_construct(
@@ -172,7 +175,7 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/issues/1/timeTracking/workItems", response_name="issue_work_items")
-    def test_get_issue_work_items(self):
+    def test_get_issue_work_items(self) -> None:
         self.assertEqual(
             (
                 IssueWorkItem.model_construct(
@@ -197,14 +200,12 @@ class TestClient(TestCase):
                     text="Working hard",
                     text_preview='<div class="wiki text common-markdown"><p>Working hard</p>\n</div>',
                     work_item_type=WorkItemType(
-                        type="WorkItemType",
                         id="1-0",
                         name="Development",
                     ),
                     created=datetime(2024, 3, 13, 11, 55, 27, tzinfo=UTC),
                     updated=None,
                     duration=DurationValue(
-                        type="DurationValue",
                         id="100",
                         minutes=100,
                         presentation="1h 40m",
@@ -216,7 +217,7 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/admin/projects", response_name="projects")
-    def test_get_projects(self):
+    def test_get_projects(self) -> None:
         self.assertEqual(
             (
                 Project.model_construct(
@@ -239,7 +240,7 @@ class TestClient(TestCase):
         url="https://server/api/admin/projects/DEMO/timeTrackingSettings/workItemTypes",
         response_name="work_item_types",
     )
-    def test_get_project_work_item_types(self):
+    def test_get_project_work_item_types(self) -> None:
         self.assertEqual(
             (
                 WorkItemType.model_construct(
@@ -262,7 +263,7 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/tags", response_name="tags")
-    def test_get_tags(self):
+    def test_get_tags(self) -> None:
         self.assertEqual(
             (
                 Tag.model_construct(
@@ -285,7 +286,7 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/users", response_name="users")
-    def test_get_users(self):
+    def test_get_users(self) -> None:
         self.assertEqual(
             (
                 User.model_construct(
@@ -322,7 +323,7 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/issueLinkTypes", response_name="issue_link_types")
-    def test_get_issue_link_types(self):
+    def test_get_issue_link_types(self) -> None:
         self.assertEqual(
             (
                 IssueLinkType.model_construct(
@@ -382,7 +383,7 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/issues/1/links", response_name="issue_links")
-    def test_get_issue_links(self):
+    def test_get_issue_links(self) -> None:
         self.assertEqual(
             (
                 IssueLink.model_construct(
@@ -597,14 +598,14 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/issues/1", response_name="issue", method=HTTPMethod.POST)
-    def test_update_issue(self):
+    def test_update_issue(self) -> None:
         self.assertEqual(
             TEST_ISSUE,
             self.client.update_issue(issue_id="1", issue=TEST_ISSUE),
         )
 
     @mock_response(url="https://server/api/agiles", response_name="agiles", method=HTTPMethod.GET)
-    def test_get_agiles(self):
+    def test_get_agiles(self) -> None:
         self.assertEqual(
             (
                 Agile.model_construct(
@@ -647,14 +648,14 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/agiles/120-8", response_name="agile", method=HTTPMethod.GET)
-    def test_get_agile(self):
+    def test_get_agile(self) -> None:
         self.assertEqual(
             TEST_AGILE,
             self.client.get_agile(agile_id="120-8"),
         )
 
     @mock_response(url="https://server/api/agiles/120-8/sprints", response_name="sprints", method=HTTPMethod.GET)
-    def test_get_sprints(self):
+    def test_get_sprints(self) -> None:
         self.assertEqual(
             (
                 TEST_SPRINT,
@@ -681,7 +682,7 @@ class TestClient(TestCase):
         )
 
     @mock_response(url="https://server/api/agiles/120-8/sprints/121-8", response_name="sprint", method=HTTPMethod.GET)
-    def test_get_sprint(self):
+    def test_get_sprint(self) -> None:
         self.assertEqual(
             TEST_SPRINT,
             self.client.get_sprint(agile_id="120-8", sprint_id="121-8"),

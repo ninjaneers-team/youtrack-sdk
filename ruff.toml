@@ -1,32 +1,20 @@
-# https://docs.astral.sh/ruff/configuration/
-exclude = ["manage.py"]
-force-exclude = true
 line-length = 120
-target-version = "py312"
+
+[format]
+preview = true
 
 [lint]
-# Full list of available rules can be found on https://docs.astral.sh/ruff/rules/
-select = [
-    "C4",     # flake8-comprehensions
-    "COM",    # flake8-commas
-    "DJ001",  # flake8-django: Avoid using null=True on string-based fields such as
-    "DJ012",  # flake8-django: Order of model's inner classes, methods, and fields
-    "DTZ",    # flake8-datetimez
-    "E",      # Error
-    "F",      # Pyflakes
-    "I",      # isort
-    "PTH",    # flake8-use-pathlib
-    "RSE",    # flake8-raise
-    "Q",      # flake8-quotes
-    "UP009",  # pyupgrade: UTF-8 encoding declaration is unnecessary
-    "W"       # Warning
-]
-ignore = []
+preview = true
+select = ["E", "W", "F", "I", "B", "C4", "UP", "E401", "ISC001", "ISC002", "ERA", "FAST", "YTT", "ANN", "S"]
+ignore = ["W191", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001", "Q002", "Q003", "COM812", "COM819", "UP045"]
 
-# Allow autofix for all enabled rules (when `--fix`) is provided.
-fixable = ["ALL"]
-unfixable = []
-
-# Ignore line-too-long error in our generated codes
 [lint.per-file-ignores]
-"**/api/schema/*" = ["E501"]
+"scripts/check.py" = ["S404", "S603"]
+# Allow assert statements (S101), temporary paths (S108), and hard-coded passwords (S105, S106) in test files.
+"**/tests/**/test_*.py" = ["S101", "S108", "S105", "S106"]
+
+[lint.isort]
+force-single-line = true
+
+[lint.flake8-implicit-str-concat]
+allow-multiline = false

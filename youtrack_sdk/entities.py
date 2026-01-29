@@ -1,20 +1,33 @@
-from typing import Annotated, Literal, Optional, Sequence
+from collections.abc import Sequence
+from enum import StrEnum
+from typing import Annotated
+from typing import Literal
+from typing import Optional
+from typing import final
 
-from pydantic import AwareDatetime, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
-from pydantic import BaseModel as PydanticBaseModel
+from pydantic import AwareDatetime
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import StrictFloat
+from pydantic import StrictInt
+from pydantic import StrictStr
 
-from .types import YouTrackDate, YouTrackDateTime
+from youtrack_sdk.types import YouTrackDate
+from youtrack_sdk.types import YouTrackDateTime
 
 
-class BaseModel(PydanticBaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True,  # allow to use field name or alias to populate a model
-        frozen=True,  # make instance immutable and hashable
-    )
+@final
+class UserTypeName(StrEnum):
+    USER = "User"
+    ME = "Me"
 
 
+@final
 class User(BaseModel):
-    type: Literal["User", "Me"] = Field(alias="$type", default="User")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[UserTypeName.USER, UserTypeName.ME] = Field(alias="$type", default=UserTypeName.USER)
     id: Optional[str] = None
     name: Optional[str] = None
     ring_id: Optional[str] = Field(alias="ringId", default=None)
@@ -22,118 +35,265 @@ class User(BaseModel):
     email: Optional[str] = None
 
 
+@final
+class TextFieldValueTypeName(StrEnum):
+    TEXT_FIELD_VALUE = "TextFieldValue"
+
+
+@final
 class TextFieldValue(BaseModel):
-    type: Literal["TextFieldValue"] = Field(alias="$type", default="TextFieldValue")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[TextFieldValueTypeName.TEXT_FIELD_VALUE] = Field(
+        alias="$type",
+        default=TextFieldValueTypeName.TEXT_FIELD_VALUE,
+    )
     id: Optional[str] = None
     text: Optional[str] = None
     markdownText: Optional[str] = None
 
 
+@final
+class PeriodValueTypeName(StrEnum):
+    PERIOD_VALUE = "PeriodValue"
+
+
+@final
 class PeriodValue(BaseModel):
-    type: Literal["PeriodValue"] = Field(alias="$type", default="PeriodValue")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[PeriodValueTypeName.PERIOD_VALUE] = Field(alias="$type", default=PeriodValueTypeName.PERIOD_VALUE)
     id: Optional[str] = None
     minutes: Optional[int] = None
     presentation: Optional[str] = None
 
 
+@final
+class DurationValueTypeName(StrEnum):
+    DURATION_VALUE = "DurationValue"
+
+
+@final
 class DurationValue(BaseModel):
-    type: Literal["DurationValue"] = Field(alias="$type", default="DurationValue")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[DurationValueTypeName.DURATION_VALUE] = Field(
+        alias="$type",
+        default=DurationValueTypeName.DURATION_VALUE,
+    )
     id: Optional[str] = None
     minutes: Optional[int] = None
     presentation: Optional[str] = None
 
 
-class BundleElement(BaseModel):
+@final
+class BundleElementTypeName(StrEnum):
+    BUILD = "BuildBundleElement"
+    VERSION = "VersionBundleElement"
+    OWNED = "OwnedBundleElement"
+    ENUM = "EnumBundleElement"
+    STATE = "StateBundleElement"
+
+
+@final
+class BuildBundleElement(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleElementTypeName.BUILD] = Field(alias="$type", default=BundleElementTypeName.BUILD)
     id: Optional[str] = None
     name: Optional[str] = None
 
 
-class BuildBundleElement(BundleElement):
-    type: Literal["BuildBundleElement"] = Field(alias="$type", default="BuildBundleElement")
+@final
+class VersionBundleElement(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleElementTypeName.VERSION] = Field(alias="$type", default=BundleElementTypeName.VERSION)
+    id: Optional[str] = None
+    name: Optional[str] = None
 
 
-class VersionBundleElement(BundleElement):
-    type: Literal["VersionBundleElement"] = Field(alias="$type", default="VersionBundleElement")
+@final
+class OwnedBundleElement(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleElementTypeName.OWNED] = Field(alias="$type", default=BundleElementTypeName.OWNED)
+    id: Optional[str] = None
+    name: Optional[str] = None
 
 
-class OwnedBundleElement(BundleElement):
-    type: Literal["OwnedBundleElement"] = Field(alias="$type", default="OwnedBundleElement")
+@final
+class EnumBundleElement(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleElementTypeName.ENUM] = Field(alias="$type", default=BundleElementTypeName.ENUM)
+    id: Optional[str] = None
+    name: Optional[str] = None
 
 
-class EnumBundleElement(BundleElement):
-    type: Literal["EnumBundleElement"] = Field(alias="$type", default="EnumBundleElement")
+@final
+class StateBundleElement(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[BundleElementTypeName.STATE] = Field(alias="$type", default=BundleElementTypeName.STATE)
+    id: Optional[str] = None
+    name: Optional[str] = None
 
 
-class StateBundleElement(BundleElement):
-    type: Literal["StateBundleElement"] = Field(alias="$type", default="StateBundleElement")
+BundleElement = Annotated[
+    BuildBundleElement | VersionBundleElement | OwnedBundleElement | EnumBundleElement | StateBundleElement,
+    Field(discriminator="type"),
+]
 
 
+@final
+class UserGroupTypeName(StrEnum):
+    USER_GROUP = "UserGroup"
+
+
+@final
 class UserGroup(BaseModel):
-    type: Literal["UserGroup"] = Field(alias="$type", default="UserGroup")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[UserGroupTypeName.USER_GROUP] = Field(alias="$type", default=UserGroupTypeName.USER_GROUP)
     id: Optional[str] = None
     name: Optional[str] = None
     ring_id: Optional[str] = Field(alias="ringId", default=None)
 
 
+@final
+class FieldTypeTypeName(StrEnum):
+    FIELD_TYPE = "FieldType"
+
+
+@final
 class FieldType(BaseModel):
-    type: Literal["FieldType"] = Field(alias="$type", default="FieldType")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[FieldTypeTypeName.FIELD_TYPE] = Field(alias="$type", default=FieldTypeTypeName.FIELD_TYPE)
     id: Optional[str] = None
 
 
+@final
+class CustomFieldTypeName(StrEnum):
+    CUSTOM_FIELD = "CustomField"
+
+
+@final
 class CustomField(BaseModel):
-    type: Literal["CustomField"] = Field(alias="$type", default="CustomField")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[CustomFieldTypeName.CUSTOM_FIELD] = Field(alias="$type", default=CustomFieldTypeName.CUSTOM_FIELD)
     field_type: Optional[FieldType] = Field(alias="fieldType", default=None)
 
 
+@final
+class ProjectCustomFieldTypeName(StrEnum):
+    GROUP = "GroupProjectCustomField"
+    BUNDLE = "BundleProjectCustomField"
+    BUILD = "BuildProjectCustomField"
+    ENUM = "EnumProjectCustomField"
+    OWNED = "OwnedProjectCustomField"
+    STATE = "StateProjectCustomField"
+    USER = "UserProjectCustomField"
+    VERSION = "VersionProjectCustomField"
+    SIMPLE = "SimpleProjectCustomField"
+    TEXT = "TextProjectCustomField"
+    PERIOD = "PeriodProjectCustomField"
+
+
 class ProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
     field: Optional[CustomField] = None
 
 
+@final
 class GroupProjectCustomField(ProjectCustomField):
-    type: Literal["GroupProjectCustomField"] = Field(alias="$type", default="GroupProjectCustomField")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.GROUP] = Field(alias="$type", default=ProjectCustomFieldTypeName.GROUP)
 
 
-class BundleProjectCustomField(ProjectCustomField):
-    type: Literal["BundleProjectCustomField"] = Field(alias="$type", default="BundleProjectCustomField")
+@final
+class BundleProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.BUNDLE] = Field(alias="$type", default=ProjectCustomFieldTypeName.BUNDLE)
+    field: Optional[CustomField] = None
 
 
-class BuildProjectCustomField(BundleProjectCustomField):
-    type: Literal["BuildProjectCustomField"] = Field(alias="$type", default="BuildProjectCustomField")
+@final
+class BuildProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.BUILD] = Field(alias="$type", default=ProjectCustomFieldTypeName.BUILD)
+    field: Optional[CustomField] = None
 
 
-class EnumProjectCustomField(BundleProjectCustomField):
-    type: Literal["EnumProjectCustomField"] = Field(alias="$type", default="EnumProjectCustomField")
+@final
+class EnumProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+    type: Literal[ProjectCustomFieldTypeName.ENUM] = Field(alias="$type", default=ProjectCustomFieldTypeName.ENUM)
+    field: Optional[CustomField] = None
 
 
-class OwnedProjectCustomField(BundleProjectCustomField):
-    type: Literal["OwnedProjectCustomField"] = Field(alias="$type", default="OwnedProjectCustomField")
+@final
+class OwnedProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.OWNED] = Field(alias="$type", default=ProjectCustomFieldTypeName.OWNED)
+    field: Optional[CustomField] = None
 
 
-class StateProjectCustomField(BundleProjectCustomField):
-    type: Literal["StateProjectCustomField"] = Field(alias="$type", default="StateProjectCustomField")
+@final
+class StateProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.STATE] = Field(alias="$type", default=ProjectCustomFieldTypeName.STATE)
+    field: Optional[CustomField] = None
 
 
-class UserProjectCustomField(BundleProjectCustomField):
-    type: Literal["UserProjectCustomField"] = Field(alias="$type", default="UserProjectCustomField")
+@final
+class UserProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.USER] = Field(alias="$type", default=ProjectCustomFieldTypeName.USER)
+    field: Optional[CustomField] = None
 
 
-class VersionProjectCustomField(BundleProjectCustomField):
-    type: Literal["VersionProjectCustomField"] = Field(alias="$type", default="VersionProjectCustomField")
+@final
+class VersionProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.VERSION] = Field(alias="$type", default=ProjectCustomFieldTypeName.VERSION)
+    field: Optional[CustomField] = None
 
 
-class SimpleProjectCustomField(ProjectCustomField):
-    type: Literal["SimpleProjectCustomField"] = Field(alias="$type", default="SimpleProjectCustomField")
+class SimpleProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.SIMPLE] = Field(alias="$type", default=ProjectCustomFieldTypeName.SIMPLE)
+    field: Optional[CustomField] = None
 
 
-class TextProjectCustomField(SimpleProjectCustomField):
-    type: Literal["TextProjectCustomField"] = Field(alias="$type", default="TextProjectCustomField")
+@final
+class TextProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.TEXT] = Field(alias="$type", default=ProjectCustomFieldTypeName.TEXT)
+    field: Optional[CustomField] = None
 
 
-class PeriodProjectCustomField(ProjectCustomField):
-    type: Literal["PeriodProjectCustomField"] = Field(alias="$type", default="PeriodProjectCustomField")
+@final
+class PeriodProjectCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectCustomFieldTypeName.PERIOD] = Field(alias="$type", default=ProjectCustomFieldTypeName.PERIOD)
+    field: Optional[CustomField] = None
 
 
-ProjectCustomFieldType = (
+ProjectCustomFieldType = Annotated[
     GroupProjectCustomField
     | BundleProjectCustomField
     | BuildProjectCustomField
@@ -144,98 +304,246 @@ ProjectCustomFieldType = (
     | VersionProjectCustomField
     | SimpleProjectCustomField
     | TextProjectCustomField
-    | PeriodProjectCustomField
-)
+    | PeriodProjectCustomField,
+    Field(discriminator="type"),
+]
 
 
+@final
+class IssueCustomFieldTypeName(StrEnum):
+    TEXT = "TextIssueCustomField"
+    SIMPLE = "SimpleIssueCustomField"
+    DATE = "DateIssueCustomField"
+    PERIOD = "PeriodIssueCustomField"
+    MULTI_BUILD = "MultiBuildIssueCustomField"
+    MULTI_ENUM = "MultiEnumIssueCustomField"
+    MULTI_GROUP = "MultiGroupIssueCustomField"
+    MULTI_OWNED = "MultiOwnedIssueCustomField"
+    MULTI_USER = "MultiUserIssueCustomField"
+    MULTI_VERSION = "MultiVersionIssueCustomField"
+    SINGLE_BUILD = "SingleBuildIssueCustomField"
+    SINGLE_ENUM = "SingleEnumIssueCustomField"
+    SINGLE_GROUP = "SingleGroupIssueCustomField"
+    SINGLE_OWNED = "SingleOwnedIssueCustomField"
+    SINGLE_USER = "SingleUserIssueCustomField"
+    SINGLE_VERSION = "SingleVersionIssueCustomField"
+    STATE = "StateIssueCustomField"
+
+
+@final
 class IssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
     id: Optional[str] = None
     name: Optional[str] = None
     project_custom_field: Optional[ProjectCustomFieldType] = Field(alias="projectCustomField", default=None)
 
 
-class TextIssueCustomField(IssueCustomField):
-    type: Literal["TextIssueCustomField"] = Field(alias="$type", default="TextIssueCustomField")
+@final
+class TextIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.TEXT] = Field(alias="$type", default=IssueCustomFieldTypeName.TEXT)
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[TextFieldValue] = None
 
 
-class SimpleIssueCustomField(IssueCustomField):
-    type: Literal["SimpleIssueCustomField"] = Field(alias="$type", default="SimpleIssueCustomField")
+@final
+class SimpleIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.SIMPLE] = Field(alias="$type", default=IssueCustomFieldTypeName.SIMPLE)
+    id: Optional[str] = None
+    name: Optional[str] = None
+    project_custom_field: Optional[ProjectCustomFieldType] = Field(alias="projectCustomField", default=None)
     value: Optional[YouTrackDateTime | StrictStr | StrictInt | StrictFloat] = None
 
 
-class DateIssueCustomField(SimpleIssueCustomField):
-    type: Literal["DateIssueCustomField"] = Field(alias="$type", default="DateIssueCustomField")
+@final
+class DateIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.DATE] = Field(alias="$type", default=IssueCustomFieldTypeName.DATE)
+    id: Optional[str] = None
+    name: Optional[str] = None
+    project_custom_field: Optional[ProjectCustomFieldType] = Field(alias="projectCustomField", default=None)
     value: Optional[YouTrackDate] = None
 
 
-class PeriodIssueCustomField(IssueCustomField):
-    type: Literal["PeriodIssueCustomField"] = Field(alias="$type", default="PeriodIssueCustomField")
+@final
+class PeriodIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.PERIOD] = Field(alias="$type", default=IssueCustomFieldTypeName.PERIOD)
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[PeriodValue] = None
 
 
-class MultiBuildIssueCustomField(IssueCustomField):
-    type: Literal["MultiBuildIssueCustomField"] = Field(alias="$type", default="MultiBuildIssueCustomField")
+@final
+class MultiBuildIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.MULTI_BUILD] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.MULTI_BUILD,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Sequence[BuildBundleElement]
 
 
-class MultiEnumIssueCustomField(IssueCustomField):
-    type: Literal["MultiEnumIssueCustomField"] = Field(alias="$type", default="MultiEnumIssueCustomField")
+@final
+class MultiEnumIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.MULTI_ENUM] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.MULTI_ENUM,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Sequence[EnumBundleElement]
 
 
-class MultiGroupIssueCustomField(IssueCustomField):
-    type: Literal["MultiGroupIssueCustomField"] = Field(alias="$type", default="MultiGroupIssueCustomField")
+@final
+class MultiGroupIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.MULTI_GROUP] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.MULTI_GROUP,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Sequence[UserGroup]
 
 
-class MultiOwnedIssueCustomField(IssueCustomField):
-    type: Literal["MultiOwnedIssueCustomField"] = Field(alias="$type", default="MultiOwnedIssueCustomField")
+@final
+class MultiOwnedIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.MULTI_OWNED] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.MULTI_OWNED,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Sequence[OwnedBundleElement]
 
 
-class MultiUserIssueCustomField(IssueCustomField):
-    type: Literal["MultiUserIssueCustomField"] = Field(alias="$type", default="MultiUserIssueCustomField")
+@final
+class MultiUserIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.MULTI_USER] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.MULTI_USER,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Sequence[User]
 
 
-class MultiVersionIssueCustomField(IssueCustomField):
-    type: Literal["MultiVersionIssueCustomField"] = Field(alias="$type", default="MultiVersionIssueCustomField")
+@final
+class MultiVersionIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.MULTI_VERSION] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.MULTI_VERSION,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Sequence[VersionBundleElement]
 
 
-class SingleBuildIssueCustomField(IssueCustomField):
-    type: Literal["SingleBuildIssueCustomField"] = Field(alias="$type", default="SingleBuildIssueCustomField")
+@final
+class SingleBuildIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.SINGLE_BUILD] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.SINGLE_BUILD,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[BuildBundleElement] = None
 
 
-class SingleEnumIssueCustomField(IssueCustomField):
-    type: Literal["SingleEnumIssueCustomField"] = Field(alias="$type", default="SingleEnumIssueCustomField")
+@final
+class SingleEnumIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.SINGLE_ENUM] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.SINGLE_ENUM,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[EnumBundleElement] = None
 
 
-class SingleGroupIssueCustomField(IssueCustomField):
-    type: Literal["SingleGroupIssueCustomField"] = Field(alias="$type", default="SingleGroupIssueCustomField")
+@final
+class SingleGroupIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.SINGLE_GROUP] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.SINGLE_GROUP,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[UserGroup] = None
 
 
-class SingleOwnedIssueCustomField(IssueCustomField):
-    type: Literal["SingleOwnedIssueCustomField"] = Field(alias="$type", default="SingleOwnedIssueCustomField")
+@final
+class SingleOwnedIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.SINGLE_OWNED] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.SINGLE_OWNED,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[OwnedBundleElement] = None
 
 
-class SingleUserIssueCustomField(IssueCustomField):
-    type: Literal["SingleUserIssueCustomField"] = Field(alias="$type", default="SingleUserIssueCustomField")
+@final
+class SingleUserIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.SINGLE_USER] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.SINGLE_USER,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[User] = None
 
 
-class SingleVersionIssueCustomField(IssueCustomField):
-    type: Literal["SingleVersionIssueCustomField"] = Field(alias="$type", default="SingleVersionIssueCustomField")
+@final
+class SingleVersionIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.SINGLE_VERSION] = Field(
+        alias="$type",
+        default=IssueCustomFieldTypeName.SINGLE_VERSION,
+    )
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[VersionBundleElement] = None
 
 
-class StateIssueCustomField(IssueCustomField):
-    type: Literal["StateIssueCustomField"] = Field(alias="$type", default="StateIssueCustomField")
+@final
+class StateIssueCustomField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCustomFieldTypeName.STATE] = Field(alias="$type", default=IssueCustomFieldTypeName.STATE)
+    id: Optional[str] = None
+    name: Optional[str] = None
     value: Optional[StateBundleElement] = None
 
 
@@ -261,21 +569,45 @@ IssueCustomFieldType = Annotated[
 ]
 
 
+@final
+class ProjectTypeName(StrEnum):
+    PROJECT = "Project"
+
+
+@final
 class Project(BaseModel):
-    type: Literal["Project"] = Field(alias="$type", default="Project")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[ProjectTypeName.PROJECT] = Field(alias="$type", default=ProjectTypeName.PROJECT)
     id: Optional[str] = None
     name: Optional[str] = None
     short_name: Optional[str] = Field(alias="shortName", default=None)
 
 
+@final
+class TagTypeName(StrEnum):
+    TAG = "Tag"
+
+
+@final
 class Tag(BaseModel):
-    type: Literal["Tag"] = Field(alias="$type", default="Tag")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[TagTypeName.TAG] = Field(alias="$type", default=TagTypeName.TAG)
     id: Optional[str] = None
     name: Optional[str] = None
 
 
+@final
+class IssueTypeName(StrEnum):
+    ISSUE = "Issue"
+
+
+@final
 class Issue(BaseModel):
-    type: Literal["Issue"] = Field(alias="$type", default="Issue")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueTypeName.ISSUE] = Field(alias="$type", default=IssueTypeName.ISSUE)
     id: Optional[str] = None
     id_readable: Optional[str] = Field(alias="idReadable", default=None)
     created: Optional[AwareDatetime] = None
@@ -296,8 +628,19 @@ class Issue(BaseModel):
         return f"/issue/{self.id_readable}"
 
 
+@final
+class IssueAttachmentTypeName(StrEnum):
+    ISSUE_ATTACHMENT = "IssueAttachment"
+
+
+@final
 class IssueAttachment(BaseModel):
-    type: Literal["IssueAttachment"] = Field(alias="$type", default="IssueAttachment")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueAttachmentTypeName.ISSUE_ATTACHMENT] = Field(
+        alias="$type",
+        default=IssueAttachmentTypeName.ISSUE_ATTACHMENT,
+    )
     id: Optional[str] = None
     name: Optional[str] = None
     author: Optional[User] = None
@@ -307,8 +650,16 @@ class IssueAttachment(BaseModel):
     url: Optional[str] = None
 
 
+@final
+class IssueCommentTypeName(StrEnum):
+    ISSUE_COMMENT = "IssueComment"
+
+
+@final
 class IssueComment(BaseModel):
-    type: Literal["IssueComment"] = Field(alias="$type", default="IssueComment")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCommentTypeName.ISSUE_COMMENT] = Field(alias="$type", default=IssueCommentTypeName.ISSUE_COMMENT)
     id: Optional[str] = None
     text: Optional[str] = None
     text_preview: Optional[str] = Field(alias="textPreview", default=None)
@@ -319,8 +670,18 @@ class IssueComment(BaseModel):
     deleted: Optional[bool] = None
 
 
+@final
+class IssueLinkTypeTypeName(StrEnum):
+    ISSUE_LINK_TYPE = "IssueLinkType"
+
+
+@final
 class IssueLinkType(BaseModel):
-    type: Literal["IssueLinkType"] = Field(alias="$type", default="IssueLinkType")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueLinkTypeTypeName.ISSUE_LINK_TYPE] = Field(
+        alias="$type", default=IssueLinkTypeTypeName.ISSUE_LINK_TYPE
+    )
     id: Optional[str] = None
     name: Optional[str] = None
     localized_name: Optional[str] = Field(alias="localizedName", default=None)
@@ -333,7 +694,10 @@ class IssueLinkType(BaseModel):
     read_only: Optional[bool] = Field(alias="readOnly", default=None)
 
 
+@final
 class IssueLink(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
     id: Optional[str] = None
     direction: Optional[Literal["OUTWARD", "INWARD", "BOTH"]] = None
     link_type: Optional[IssueLinkType] = Field(alias="linkType", default=None)
@@ -341,14 +705,35 @@ class IssueLink(BaseModel):
     trimmed_issues: Optional[Sequence[Issue]] = Field(alias="trimmedIssues", default=None)
 
 
+@final
+class WorkItemTypeTypeName(StrEnum):
+    WORK_ITEM_TYPE = "WorkItemType"
+
+
+@final
 class WorkItemType(BaseModel):
-    type: Literal["WorkItemType"] = Field(alias="$type", default="WorkItemType")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[WorkItemTypeTypeName.WORK_ITEM_TYPE] = Field(
+        alias="$type",
+        default=WorkItemTypeTypeName.WORK_ITEM_TYPE,
+    )
     id: Optional[str] = None
     name: Optional[str] = None
 
 
+@final
+class IssueWorkItemTypeName(StrEnum):
+    ISSUE_WORK_ITEM = "IssueWorkItem"
+
+
+@final
 class IssueWorkItem(BaseModel):
-    type: Literal["IssueWorkItem"] = Field(alias="$type", default="IssueWorkItem")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueWorkItemTypeName.ISSUE_WORK_ITEM] = Field(
+        alias="$type", default=IssueWorkItemTypeName.ISSUE_WORK_ITEM
+    )
     id: Optional[str] = None
     author: Optional[User] = None
     creator: Optional[User] = None
@@ -361,19 +746,41 @@ class IssueWorkItem(BaseModel):
     date: Optional[AwareDatetime] = None
 
 
+@final
+class AgileTypeName(StrEnum):
+    AGILE = "Agile"
+
+
+@final
 class AgileRef(BaseModel):
-    type: Literal["Agile"] = Field(alias="$type", default="Agile")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[AgileTypeName.AGILE] = Field(alias="$type", default=AgileTypeName.AGILE)
     id: Optional[str] = None
     name: Optional[str] = None
 
 
+@final
+class SprintTypeName(StrEnum):
+    SPRINT = "Sprint"
+
+
+@final
 class SprintRef(BaseModel):
-    type: Literal["Sprint"] = Field(alias="$type", default="Sprint")
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[SprintTypeName.SPRINT] = Field(alias="$type", default=SprintTypeName.SPRINT)
     id: Optional[str] = None
     name: Optional[str] = None
 
 
-class Agile(AgileRef):
+@final
+class Agile(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[AgileTypeName.AGILE] = Field(alias="$type", default=AgileTypeName.AGILE)
+    id: Optional[str] = None
+    name: Optional[str] = None
     owner: Optional[User] = None
     visible_for: Optional[UserGroup] = Field(alias="visibleFor", default=None)
     projects: Optional[Sequence[Project]] = None
@@ -381,7 +788,13 @@ class Agile(AgileRef):
     current_sprint: Optional[SprintRef] = Field(alias="currentSprint", default=None)
 
 
-class Sprint(SprintRef):
+@final
+class Sprint(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[SprintTypeName.SPRINT] = Field(alias="$type", default=SprintTypeName.SPRINT)
+    id: Optional[str] = None
+    name: Optional[str] = None
     agile: Optional[AgileRef] = None
     goal: Optional[str] = None
     start: Optional[AwareDatetime] = None
