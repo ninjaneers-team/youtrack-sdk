@@ -1,12 +1,12 @@
 [project]
 name = "youtrack-sdk"
 description = "YouTrack SDK"
-dynamic = [ "version" ]
+version = "0.1.1"
 authors = [
     { name = "moneymeets", email = "service@moneymeets.com" },
+    { name = "Michael Gerhold", email = "michael.gerhold@ninjaneers.de" },
 ]
 readme = "README.md"
-include = ["VERSION.txt"]
 keywords = ["youtrack", "sdk"]
 license = "MIT"
 classifiers = [
@@ -14,37 +14,28 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "License :: OSI Approved :: MIT License",
 ]
 requires-python = ">=3.12"
-
-[project.urls]
-repository = "https://github.com/moneymeets/youtrack-sdk"
-
-[tool.poetry]
-version = "1.1+SNAPSHOT"
-packages = [
-    { include = "youtrack_sdk" },
+dependencies = [
+    "pydantic>=2.12.5",
+    "requests>=2.32.5",
 ]
 
-[tool.poetry.dependencies]
-requests = "*"
-pydantic = "*"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "*"
-pytest-cov = "*"
-
-requests-mock = "*"
-
-ruff = "*"
-
-[tool.coverage.run]
-branch = true
-source = ["."]
-omit = ["**/tests/**"]
+[project.urls]
+repository = "https://github.com/ninjaneers-team/youtrack-sdk"  # This fork.
+homepage = "https://github.com/moneymeets/youtrack-sdk"  # Original.
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "requests-mock>=1.12.1",
+    "ruff>=0.14.14",
+]
