@@ -1,5 +1,5 @@
+from collections.abc import AsyncGenerator
 from collections.abc import Callable
-from collections.abc import Generator
 from datetime import UTC
 from datetime import datetime
 from functools import wraps
@@ -8,14 +8,15 @@ from pathlib import Path
 from typing import Any
 from typing import Final
 from unittest.mock import ANY
-from unittest.mock import Mock
+from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import httpx
 import pytest
+import pytest_asyncio
 import respx
 
-import youtrack_sdk.client
+import youtrack_sdk.async_client
 from tests.test_definitions import TEST_AGILE
 from tests.test_definitions import TEST_CUSTOM_ISSUE
 from tests.test_definitions import TEST_CUSTOM_ISSUE_2
@@ -23,8 +24,8 @@ from tests.test_definitions import TEST_ISSUE
 from tests.test_definitions import TEST_ISSUE_2
 from tests.test_definitions import TEST_SPRINT
 from tests.test_definitions import CustomIssue
+from youtrack_sdk.async_client import AsyncClient
 from youtrack_sdk.base_client import BaseClient
-from youtrack_sdk.client import Client
 from youtrack_sdk.entities import Agile
 from youtrack_sdk.entities import AgileRef
 from youtrack_sdk.entities import DurationValue
@@ -53,7 +54,7 @@ def mock_response(
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     def wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def inner(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        async def inner(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
             with respx.mock:
                 respx.route(method=method, url=url).mock(
                     return_value=httpx.Response(
@@ -61,25 +62,30 @@ def mock_response(
                         text=(Path(__file__).parent / "responses" / f"{response_name}.json").read_text(),
                     )
                 )
-                return func(*args, **kwargs)
+                return await func(*args, **kwargs)
 
         return inner
 
     return wrapper
 
 
-@pytest.fixture
-def client() -> Generator[Client]:
-    """Fixture providing a Client instance with cleanup."""
-    with Client(base_url="https://server", token="test") as client:  # noqa: S106
+@pytest_asyncio.fixture
+async def client() -> AsyncGenerator[AsyncClient]:
+    """Fixture providing an AsyncClient instance with cleanup."""
+    async with AsyncClient(base_url="https://server", token="test") as client:  # noqa: S106
         yield client
 
 
-@patch.object(youtrack_sdk.client.httpx.Client, "request", side_effect=httpx.ConnectTimeout("timeout"))
-def test_client_timeout(mock_request: Any) -> None:  # noqa: ANN401
-    client: Final = Client(base_url="https://server", token="test", timeout=123)  # noqa: S106
+@pytest.mark.asyncio
+@patch.object(
+    youtrack_sdk.async_client.httpx.AsyncClient,
+    "request",
+    side_effect=httpx.ConnectTimeout("timeout"),
+)
+async def test_client_timeout(mock_request: Any) -> None:  # noqa: ANN401
+    client: Final = AsyncClient(base_url="https://server", token="test", timeout=123)  # noqa: S106
     with pytest.raises(httpx.ConnectTimeout):
-        client.get_issue(issue_id="1")
+        await client.get_issue(issue_id="1")
     mock_request.assert_called_once_with(
         method=HTTPMethod.GET,
         url=ANY,
@@ -89,35 +95,40 @@ def test_client_timeout(mock_request: Any) -> None:  # noqa: ANN401
     )
 
 
-def test_get_absolute_url(client: Client) -> None:
+@pytest.mark.asyncio
+async def test_get_absolute_url(client: AsyncClient) -> None:
     assert client.get_absolute_url(path="/issue/1") == "https://server/issue/1"
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issues/1", response_name="issue")
-def test_get_issue(client: Client) -> None:
-    assert client.get_issue(issue_id="1") == TEST_ISSUE
+async def test_get_issue(client: AsyncClient) -> None:
+    assert await client.get_issue(issue_id="1") == TEST_ISSUE
 
 
 def test_issue_url() -> None:
     assert TEST_ISSUE.url == "/issue/HD-25"
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issues/", response_name="issues")
-def test_get_issues(client: Client) -> None:
-    assert client.get_issues(query="in:TD for:me") == (TEST_ISSUE, TEST_ISSUE_2)
+async def test_get_issues(client: AsyncClient) -> None:
+    assert await client.get_issues(query="in:TD for:me") == (TEST_ISSUE, TEST_ISSUE_2)
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issues/", response_name="issues_custom_model")
-def test_get_issues_custom_model(client: Client) -> None:
-    assert client.get_issues(model=CustomIssue, custom_fields=["State", "Type"]) == (
+async def test_get_issues_custom_model(client: AsyncClient) -> None:
+    assert await client.get_issues(model=CustomIssue, custom_fields=["State", "Type"]) == (
         TEST_CUSTOM_ISSUE,
         TEST_CUSTOM_ISSUE_2,
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issues/1/comments", response_name="issue_comments")
-def test_get_issue_comments(client: Client) -> None:
-    assert client.get_issue_comments(issue_id="1") == (
+async def test_get_issue_comments(client: AsyncClient) -> None:
+    assert await client.get_issue_comments(issue_id="1") == (
         IssueComment.model_construct(
             type="IssueComment",
             id="4-296",
@@ -183,9 +194,10 @@ def test_get_issue_comments(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issues/1/timeTracking/workItems", response_name="issue_work_items")
-def test_get_issue_work_items(client: Client) -> None:
-    assert client.get_issue_work_items(issue_id="1") == (
+async def test_get_issue_work_items(client: AsyncClient) -> None:
+    assert await client.get_issue_work_items(issue_id="1") == (
         IssueWorkItem.model_construct(
             type="IssueWorkItem",
             id="12-14",
@@ -223,9 +235,10 @@ def test_get_issue_work_items(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/admin/projects", response_name="projects")
-def test_get_projects(client: Client) -> None:
-    assert client.get_projects() == (
+async def test_get_projects(client: AsyncClient) -> None:
+    assert await client.get_projects() == (
         Project.model_construct(
             type="Project",
             id="0-0",
@@ -241,12 +254,13 @@ def test_get_projects(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(
     url="https://server/api/admin/projects/DEMO/timeTrackingSettings/workItemTypes",
     response_name="work_item_types",
 )
-def test_get_project_work_item_types(client: Client) -> None:
-    assert client.get_project_work_item_types(project_id="DEMO") == (
+async def test_get_project_work_item_types(client: AsyncClient) -> None:
+    assert await client.get_project_work_item_types(project_id="DEMO") == (
         WorkItemType.model_construct(
             type="WorkItemType",
             id="1-0",
@@ -265,9 +279,10 @@ def test_get_project_work_item_types(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/tags", response_name="tags")
-def test_get_tags(client: Client) -> None:
-    assert client.get_tags() == (
+async def test_get_tags(client: AsyncClient) -> None:
+    assert await client.get_tags() == (
         Tag.model_construct(
             type="Tag",
             id="6-0",
@@ -286,9 +301,10 @@ def test_get_tags(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/users", response_name="users")
-def test_get_users(client: Client) -> None:
-    assert client.get_users() == (
+async def test_get_users(client: AsyncClient) -> None:
+    assert await client.get_users() == (
         User.model_construct(
             type="User",
             id="1-17",
@@ -321,9 +337,10 @@ def test_get_users(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issueLinkTypes", response_name="issue_link_types")
-def test_get_issue_link_types(client: Client) -> None:
-    assert client.get_issue_link_types() == (
+async def test_get_issue_link_types(client: AsyncClient) -> None:
+    assert await client.get_issue_link_types() == (
         IssueLinkType.model_construct(
             type="IssueLinkType",
             id="106-0",
@@ -379,9 +396,10 @@ def test_get_issue_link_types(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issues/1/links", response_name="issue_links")
-def test_get_issue_links(client: Client) -> None:
-    assert client.get_issue_links(issue_id="1") == (
+async def test_get_issue_links(client: AsyncClient) -> None:
+    assert await client.get_issue_links(issue_id="1") == (
         IssueLink.model_construct(
             id="106-0",
             direction="BOTH",
@@ -592,14 +610,16 @@ def test_get_issue_links(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/issues/1", response_name="issue", method=HTTPMethod.POST)
-def test_update_issue(client: Client) -> None:
-    assert client.update_issue(issue_id="1", issue=TEST_ISSUE) == TEST_ISSUE
+async def test_update_issue(client: AsyncClient) -> None:
+    assert await client.update_issue(issue_id="1", issue=TEST_ISSUE) == TEST_ISSUE
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/agiles", response_name="agiles", method=HTTPMethod.GET)
-def test_get_agiles(client: Client) -> None:
-    assert client.get_agiles() == (
+async def test_get_agiles(client: AsyncClient) -> None:
+    assert await client.get_agiles() == (
         Agile.model_construct(
             type="Agile",
             id="120-0",
@@ -638,14 +658,16 @@ def test_get_agiles(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/agiles/120-8", response_name="agile", method=HTTPMethod.GET)
-def test_get_agile(client: Client) -> None:
-    assert client.get_agile(agile_id="120-8") == TEST_AGILE
+async def test_get_agile(client: AsyncClient) -> None:
+    assert await client.get_agile(agile_id="120-8") == TEST_AGILE
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/agiles/120-8/sprints", response_name="sprints", method=HTTPMethod.GET)
-def test_get_sprints(client: Client) -> None:
-    assert client.get_sprints(agile_id="120-8") == (
+async def test_get_sprints(client: AsyncClient) -> None:
+    assert await client.get_sprints(agile_id="120-8") == (
         TEST_SPRINT,
         Sprint.model_construct(
             type="Sprint",
@@ -668,32 +690,36 @@ def test_get_sprints(client: Client) -> None:
     )
 
 
+@pytest.mark.asyncio
 @mock_response(url="https://server/api/agiles/120-8/sprints/121-8", response_name="sprint", method=HTTPMethod.GET)
-def test_get_sprint(client: Client) -> None:
-    assert client.get_sprint(agile_id="120-8", sprint_id="121-8") == TEST_SPRINT
+async def test_get_sprint(client: AsyncClient) -> None:
+    assert await client.get_sprint(agile_id="120-8", sprint_id="121-8") == TEST_SPRINT
 
 
-def test_context_manager() -> None:
-    """Test that Client can be used as a context manager."""
-    with Client(base_url="https://server", token="test") as client:  # noqa: S106
-        assert isinstance(client, Client)
+@pytest.mark.asyncio
+async def test_context_manager() -> None:
+    """Test that AsyncClient can be used as an async context manager."""
+    async with AsyncClient(base_url="https://server", token="test") as client:  # noqa: S106
+        assert isinstance(client, AsyncClient)
 
 
-def test_context_manager_cleanup() -> None:
-    """Test that the context manager properly closes the client."""
-    client: Final = Client(base_url="https://server", token="test")  # noqa: S106
-    with client:
+@pytest.mark.asyncio
+async def test_async_context_manager_cleanup() -> None:
+    """Test that the async context manager properly closes the client."""
+    client: Final = AsyncClient(base_url="https://server", token="test")  # noqa: S106
+    async with client:
         assert not client._client.is_closed  # type: ignore[reportPrivateUsage]
     assert client._client.is_closed  # type: ignore[reportPrivateUsage]
 
 
-def test_external_httpx_client() -> None:
-    """Test that Client can use an external httpx.Client instance."""
-    mock_client: Final = Mock(spec=httpx.Client)
+@pytest.mark.asyncio
+async def test_external_httpx_async_client() -> None:
+    """Test that AsyncClient can use an external httpx.AsyncClient instance."""
+    mock_client: Final = AsyncMock(spec=httpx.AsyncClient)
     mock_client.headers = {}
     mock_client.timeout = None  # Initialize timeout attribute
 
-    client: Final = Client(base_url="https://server", token="test", client=mock_client)  # noqa: S106
+    client: Final = AsyncClient(base_url="https://server", token="test", client=mock_client)  # noqa: S106
 
     # Verify the external client was used
     assert client._client is mock_client  # type: ignore[reportPrivateUsage]
@@ -702,66 +728,73 @@ def test_external_httpx_client() -> None:
     assert mock_client.headers["Authorization"] == "Bearer test"
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_not_found_error(client: Client) -> None:
+async def test_not_found_error(client: AsyncClient) -> None:
     """Test that a 404 NOT_FOUND response raises YouTrackNotFound."""
     respx.get("https://server/api/issues/INVALID-123").mock(return_value=httpx.Response(404))
 
     with pytest.raises(YouTrackNotFound):
-        client.get_issue(issue_id="INVALID-123")
+        await client.get_issue(issue_id="INVALID-123")
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_unauthorized_error(client: Client) -> None:
+async def test_unauthorized_error(client: AsyncClient) -> None:
     """Test that a 401 UNAUTHORIZED response raises YouTrackUnauthorized."""
     respx.get("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(401))
 
     with pytest.raises(YouTrackUnauthorized):
-        client.get_issue(issue_id="DEMO-1")
+        await client.get_issue(issue_id="DEMO-1")
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_get_bytes_empty_response_error(client: Client) -> None:
+async def test_get_bytes_empty_response_error(client: AsyncClient) -> None:
     """Test that _get_bytes raises YouTrackException when response is empty."""
     # Mock a GET request that returns 204 No Content (empty response)
     respx.get("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(204))
 
     with pytest.raises(YouTrackException, match="Unexpected empty response from GET"):
-        client.get_issue(issue_id="DEMO-1")
+        await client.get_issue(issue_id="DEMO-1")
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_post_bytes_empty_response_error(client: Client) -> None:
+async def test_post_bytes_empty_response_error(client: AsyncClient) -> None:
     """Test that _post_bytes raises YouTrackException when response is empty."""
     # Mock a POST request that returns 204 No Content (empty response)
     respx.post("https://server/api/issues").mock(return_value=httpx.Response(204))
 
     with pytest.raises(YouTrackException, match="Unexpected empty response from POST"):
-        client.create_issue(issue=TEST_ISSUE)
+        await client.create_issue(issue=TEST_ISSUE)
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_unexpected_status_code_error(client: Client) -> None:
+async def test_unexpected_status_code_error(client: AsyncClient) -> None:
     """Test that unexpected status codes raise YouTrackException."""
     # Mock a request that returns an unexpected error status code (e.g., 500)
     respx.get("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(500))
 
     with pytest.raises(YouTrackException, match="Unexpected status code for GET"):
-        client.get_issue(issue_id="DEMO-1")
+        await client.get_issue(issue_id="DEMO-1")
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_delete_issue(client: Client) -> None:
+async def test_delete_issue(client: AsyncClient) -> None:
     """Test deleting an issue."""
     respx.delete("https://server/api/issues/DEMO-1").mock(return_value=httpx.Response(200))
 
     # delete_issue returns None on success
-    result: Final = client.delete_issue(issue_id="DEMO-1")
+    result: Final = await client.delete_issue(issue_id="DEMO-1")
     assert result is None
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_add_comment_to_issue(client: Client) -> None:
+async def test_add_comment_to_issue(client: AsyncClient) -> None:
     """Test adding a comment to an issue."""
     comment: Final = IssueComment(text="Test comment")
     mock_response: Final = '{"id": "1-1", "type": "IssueComment", "text": "Test comment", "deleted": false}'
@@ -769,21 +802,23 @@ def test_add_comment_to_issue(client: Client) -> None:
         return_value=httpx.Response(200, content=mock_response)
     )
 
-    result: Final = client.create_issue_comment(issue_id="DEMO-1", comment=comment)
+    result: Final = await client.create_issue_comment(issue_id="DEMO-1", comment=comment)
     assert result.text == "Test comment"
     assert result.id == "1-1"
 
 
+@pytest.mark.asyncio
 @respx.mock
-def test_delete_issue_comment(client: Client) -> None:
+async def test_delete_issue_comment(client: AsyncClient) -> None:
     """Test deleting an issue comment."""
     respx.delete("https://server/api/issues/DEMO-1/comments/1-1").mock(return_value=httpx.Response(200))
 
-    result: Final = client.delete_issue_comment(issue_id="DEMO-1", comment_id="1-1")
+    result: Final = await client.delete_issue_comment(issue_id="DEMO-1", comment_id="1-1")
     assert result is None
 
 
-def test_client_with_timeout_spec() -> None:
+@pytest.mark.asyncio
+async def test_client_with_timeout_spec() -> None:
     """Test that TimeoutSpec is properly converted to httpx.Timeout."""
     timeout_spec: Final = TimeoutSpec(connect_timeout=5.0, read_timeout=30.0)
 
