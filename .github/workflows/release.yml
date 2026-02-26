@@ -1,0 +1,90 @@
+name: Release (build + publish to PyPI)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  verify-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Verify tag matches pyproject.toml version
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import os, re, sys, pathlib, tomllib
+
+          tag = os.environ["TAG_NAME"]
+          m = re.fullmatch(r"v(\d+\.\d+\.\d+)", tag)
+          if not m:
+              print(f"ERROR: Release tag {tag!r} is not in vX.Y.Z format.")
+              sys.exit(1)
+
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text("utf-8"))
+          version = data.get("project", {}).get("version")
+          if not version:
+              print("ERROR: Missing [project].version in pyproject.toml.")
+              sys.exit(1)
+
+          tag_version = m.group(1)
+          if version != tag_version:
+              print(f"ERROR: Version mismatch: pyproject.toml={version!r} tag={tag_version!r}")
+              sys.exit(1)
+
+          print(f"OK: {version} matches {tag}")
+          PY
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [verify-version]
+    permissions:
+      contents: read
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/youtrack-python
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
