@@ -24,8 +24,8 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/ninjaneers-team/youtrack-sdk"  # This fork.
-Homepage = "https://github.com/moneymeets/youtrack-sdk"  # Original.
+Repository = "https://github.com/ninjaneers-team/youtrack-sdk"
+Homepage = "https://github.com/ninjaneers-team/youtrack-sdk"
 
 [build-system]
 requires = ["hatchling"]
