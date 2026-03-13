@@ -1,7 +1,7 @@
 [project]
 name = "youtrack-python"
 description = "YouTrack SDK"
-version = "0.1.2"
+version = "0.1.3"
 authors = [
     { name = "Michael Gerhold", email = "michael.gerhold@ninjaneers.de" },
     { name = "moneymeets", email = "service@moneymeets.com" },
