@@ -3,8 +3,8 @@ name = "youtrack-python"
 description = "YouTrack SDK"
 version = "0.1.2"
 authors = [
-    { name = "moneymeets", email = "service@moneymeets.com" },
     { name = "Michael Gerhold", email = "michael.gerhold@ninjaneers.de" },
+    { name = "moneymeets", email = "service@moneymeets.com" },
 ]
 readme = "README.md"
 keywords = ["youtrack", "sdk"]
