@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from http import HTTPMethod
 from http import HTTPStatus
+from time import sleep
 from types import TracebackType
 from typing import IO
 from typing import Final
@@ -16,7 +17,10 @@ from youtrack_sdk.entities import BaseModel
 from youtrack_sdk.entities import Issue
 from youtrack_sdk.entities import IssueAttachment
 from youtrack_sdk.entities import IssueComment
+from youtrack_sdk.entities import IssueCountRequest
+from youtrack_sdk.entities import IssueCountResponse
 from youtrack_sdk.entities import IssueCustomFieldType
+from youtrack_sdk.entities import IssueFolder
 from youtrack_sdk.entities import IssueLink
 from youtrack_sdk.entities import IssueLinkType
 from youtrack_sdk.entities import IssueWorkItem
@@ -191,6 +195,44 @@ class Client(BaseClient):
                 ),
             ),
         )
+
+    def get_issue_count(
+        self,
+        *,
+        query: str = "",
+        unresolved_only: Optional[bool] = None,
+        folder: Optional[IssueFolder] = None,
+        max_attempts: int = 10,
+        retry_delay_seconds: float = 1.0,
+    ) -> int:
+        """Get the number of issues that match the specified query.
+
+        YouTrack computes the count asynchronously: while it’s still in progress, the response
+        contains `count: -1`. This method polls the endpoint until a non-negative count is
+        returned, waiting `retry_delay_seconds` between attempts, and raises `YouTrackException`
+        if the count doesn’t resolve within `max_attempts`.
+
+        https://www.jetbrains.com/help/youtrack/devportal/resource-api-issuesGetter-count.html
+        """
+        request: Final = IssueCountRequest(
+            query=query,
+            unresolvedOnly=unresolved_only,
+            folder=folder,
+        )
+        url: Final = self._build_url(
+            path="/issuesGetter/count",
+            fields=model_to_field_names(IssueCountResponse),
+        )
+
+        for attempt in range(max_attempts):
+            response = IssueCountResponse.model_validate_json(self._post_bytes(url=url, data=request))
+            if response.count is not None and response.count >= 0:
+                return response.count
+            if attempt + 1 < max_attempts:
+                sleep(retry_delay_seconds)
+
+        msg: Final = f"Issue count for query {query!r} did not resolve after {max_attempts} attempts"
+        raise YouTrackException(msg)
 
     def create_issue(self, *, issue: Issue) -> Issue:
         """Create new issue.

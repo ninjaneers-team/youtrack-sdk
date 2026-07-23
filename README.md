@@ -10,6 +10,7 @@ This fork includes the following improvements over the original repository:
 
 - **AsyncClient Implementation**: Full async/await support with `AsyncClient` for non-blocking I/O operations
 - **Project Custom Fields API**: New `get_project_custom_fields()` method to retrieve custom field definitions for projects
+- **Issue Count API**: New `get_issue_count()` method to count issues matching a query, with built-in polling for YouTrack’s asynchronous count computation
 - **Migrated to UV**: Switched from Poetry to UV for dependency management
 - **Enhanced Testing**: Migrated test suite from unittest to Pytest with async test support
 - **Modern Python**: Updated to require Python 3.13+ with improved type hints and linting
@@ -101,6 +102,18 @@ with Client(base_url="https://dummy.myjetbrains.com/youtrack", token="dummy") as
 ```
 
 See [examples/list_project_custom_fields.py](examples/list_project_custom_fields.py) for a complete example.
+
+### Counting Issues
+
+```python
+from youtrack_sdk import Client
+
+with Client(base_url="https://dummy.myjetbrains.com/youtrack", token="dummy") as client:
+    count = client.get_issue_count(query="for: john.smith project: NP #Unresolved")
+    print(f"Matching issues: {count}")
+```
+
+YouTrack computes the count asynchronously, so `get_issue_count()` polls internally until a result is available. Use `max_attempts` and `retry_delay_seconds` to tune the polling behavior.
 
 ## Note
 

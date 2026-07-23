@@ -905,3 +905,52 @@ class Sprint(BaseModel):
     issues: Optional[Sequence[Issue]] = None
     unresolved_issues_count: Optional[int] = Field(alias="unresolvedIssuesCount", default=None)
     previous_sprint: Optional[SprintRef] = Field(alias="previousSprint", default=None)
+
+
+@final
+class IssueFolderTypeName(StrEnum):
+    ISSUE_FOLDER = "IssueFolder"
+    PROJECT = "Project"
+    SAVED_QUERY = "SavedQuery"
+    TAG = "Tag"
+    WATCH_FOLDER = "WatchFolder"
+
+
+@final
+class IssueFolder(BaseModel):
+    """A search context/scope (e.g. a project, saved search or tag) that issues can be counted within."""
+
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Optional[IssueFolderTypeName] = Field(alias="$type", default=None)
+    id: Optional[str] = None
+    name: Optional[str] = None
+
+
+@final
+class IssueCountRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    query: str = ""
+    unresolved_only: Optional[bool] = Field(alias="unresolvedOnly", default=None)
+    folder: Optional[IssueFolder] = None
+
+
+@final
+class IssueCountResponseTypeName(StrEnum):
+    ISSUE_COUNT_RESPONSE = "IssueCountResponse"
+
+
+@final
+class IssueCountResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    type: Literal[IssueCountResponseTypeName.ISSUE_COUNT_RESPONSE] = Field(
+        alias="$type",
+        default=IssueCountResponseTypeName.ISSUE_COUNT_RESPONSE,
+    )
+    id: Optional[str] = None
+    count: Optional[int] = None
+    query: Optional[str] = None
+    unresolved_only: Optional[bool] = Field(alias="unresolvedOnly", default=None)
+    folder: Optional[IssueFolder] = None

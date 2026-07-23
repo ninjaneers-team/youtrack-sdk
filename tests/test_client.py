@@ -32,6 +32,7 @@ from youtrack_sdk.entities import EnumProjectCustomField
 from youtrack_sdk.entities import Issue
 from youtrack_sdk.entities import IssueAttachment
 from youtrack_sdk.entities import IssueComment
+from youtrack_sdk.entities import IssueFolder
 from youtrack_sdk.entities import IssueLink
 from youtrack_sdk.entities import IssueLinkType
 from youtrack_sdk.entities import IssueWorkItem
@@ -827,6 +828,51 @@ def test_delete_issue_comment(client: Client) -> None:
 
     result: Final = client.delete_issue_comment(issue_id="DEMO-1", comment_id="1-1")
     assert result is None
+
+
+@respx.mock
+def test_get_issue_count(client: Client) -> None:
+    """Test getting the issue count when it resolves on the first request."""
+    respx.post("https://server/api/issuesGetter/count").mock(
+        return_value=httpx.Response(200, json={"$type": "IssueCountResponse", "count": 29}),
+    )
+
+    assert client.get_issue_count(query="for: john.smith project: NP #Unresolved") == 29
+
+
+@respx.mock
+@patch("youtrack_sdk.client.sleep")
+def test_get_issue_count_polls_until_resolved(mock_sleep: Any) -> None:  # noqa: ANN401
+    """Test that `get_issue_count()` polls while the count is still being computed (`count: -1`)."""
+    route: Final = respx.post("https://server/api/issuesGetter/count").mock(
+        side_effect=[
+            httpx.Response(200, json={"$type": "IssueCountResponse", "count": -1}),
+            httpx.Response(200, json={"$type": "IssueCountResponse", "count": -1}),
+            httpx.Response(200, json={"$type": "IssueCountResponse", "count": 42}),
+        ],
+    )
+
+    with Client(base_url="https://server", token="test") as client:  # noqa: S106
+        assert client.get_issue_count(query="project: DEMO", folder=IssueFolder(id="0-0")) == 42
+
+    assert route.call_count == 3
+    assert mock_sleep.call_count == 2
+
+
+@respx.mock
+@patch("youtrack_sdk.client.sleep")
+def test_get_issue_count_gives_up_after_max_attempts(mock_sleep: Any) -> None:  # noqa: ANN401
+    """Test that `get_issue_count()` raises `YouTrackException` if the count never resolves."""
+    route: Final = respx.post("https://server/api/issuesGetter/count").mock(
+        return_value=httpx.Response(200, json={"$type": "IssueCountResponse", "count": -1}),
+    )
+
+    with Client(base_url="https://server", token="test") as client:  # noqa: S106
+        with pytest.raises(YouTrackException, match="did not resolve after 3 attempts"):
+            client.get_issue_count(query="project: DEMO", max_attempts=3, retry_delay_seconds=0)
+
+    assert route.call_count == 3
+    assert mock_sleep.call_count == 2
 
 
 def test_client_with_timeout_spec() -> None:
